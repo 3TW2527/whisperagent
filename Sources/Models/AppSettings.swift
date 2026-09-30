@@ -1,6 +1,20 @@
 import Foundation
 import SwiftUI
 
+public enum FileIngestionAction: String, CaseIterable, Identifiable, Sendable {
+    case copy = "Copy"
+    case move = "Move"
+
+    public var id: String { rawValue }
+
+    public var description: String {
+        switch self {
+        case .copy: return "Copy (keep original in place)"
+        case .move: return "Move (relocate into lecture folder)"
+        }
+    }
+}
+
 @MainActor
 public class AppSettings: ObservableObject {
     public static let shared = AppSettings()
@@ -9,6 +23,7 @@ public class AppSettings: ObservableObject {
     private let rootPathStringKey = "WhisperLectures_RootPath"
     private let selectedModelKey = "WhisperLectures_SelectedModel"
     private let silenceThresholdKey = "WhisperLectures_SilenceThreshold"
+    private let fileIngestionActionKey = "WhisperLectures_FileIngestionAction"
 
     @Published public var rootFolderURL: URL {
         didSet {
@@ -28,7 +43,17 @@ public class AppSettings: ObservableObject {
         }
     }
 
+    @Published public var fileIngestionAction: FileIngestionAction {
+        didSet {
+            UserDefaults.standard.set(fileIngestionAction.rawValue, forKey: fileIngestionActionKey)
+        }
+    }
+
     private init() {
+        // Load Ingestion Action
+        let savedActionStr = UserDefaults.standard.string(forKey: fileIngestionActionKey) ?? "Copy"
+        self.fileIngestionAction = FileIngestionAction(rawValue: savedActionStr) ?? .copy
+
         // Load Model
         let savedModel = UserDefaults.standard.string(forKey: selectedModelKey) ?? "openai_whisper-base"
         self.selectedModelVariant = savedModel

@@ -16,6 +16,7 @@
 		474AF61847E435CC44AE728C /* WaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB6DB14F6134962F1168B6D /* WaveformView.swift */; };
 		505293CED130C37CC9964B87 /* TranscriptFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E273D70A8A496F1879E787F /* TranscriptFile.swift */; };
 		5E3F7155E895AEFE3DD9DF7F /* FileAttachmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F31BBD5752286B11F8A31390 /* FileAttachmentsView.swift */; };
+		6C25D6EC2BFA7D7D254184B9 /* TranscriptionJob.swift in Sources */ = {isa = PBXBuildFile; fileRef = E58AB643567A50F8F18AE702 /* TranscriptionJob.swift */; };
 		6EBA613DDD1BB46FFA391BD3 /* LectureFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3D3B4AC3241DC071C9580B1 /* LectureFile.swift */; };
 		9B3EC482B1E0B08D8AB967ED /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AACE37D91B8D16EF78518DB /* SettingsView.swift */; };
 		A355B723F6F554BA69AA3DC8 /* AudioAnalysisResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02B40AFE6B17065F61E52E6D /* AudioAnalysisResult.swift */; };
@@ -46,6 +47,7 @@
 		7E273D70A8A496F1879E787F /* TranscriptFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptFile.swift; sourceTree = "<group>"; };
 		AB775FB6721014CBFDEB86FE /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
 		B3D3B4AC3241DC071C9580B1 /* LectureFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LectureFile.swift; sourceTree = "<group>"; };
+		E58AB643567A50F8F18AE702 /* TranscriptionJob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionJob.swift; sourceTree = "<group>"; };
 		F31BBD5752286B11F8A31390 /* FileAttachmentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileAttachmentsView.swift; sourceTree = "<group>"; };
 		F7947A4EB1FCD8B9C01901FB /* QuickLookPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookPreview.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -131,6 +133,7 @@
 				B3D3B4AC3241DC071C9580B1 /* LectureFile.swift */,
 				48944234D075504C3A4B0731 /* LectureProject.swift */,
 				7E273D70A8A496F1879E787F /* TranscriptFile.swift */,
+				E58AB643567A50F8F18AE702 /* TranscriptionJob.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -208,6 +211,7 @@
 				02F7A24993FCE4F4AF405168 /* QuickLookPreview.swift in Sources */,
 				9B3EC482B1E0B08D8AB967ED /* SettingsView.swift in Sources */,
 				505293CED130C37CC9964B87 /* TranscriptFile.swift in Sources */,
+				6C25D6EC2BFA7D7D254184B9 /* TranscriptionJob.swift in Sources */,
 				D768CE2FDC5AA36EE63C2D36 /* TranscriptsView.swift in Sources */,
 				E781838F334B78CD088D75DD /* VoiceMemosService.swift in Sources */,
 				474AF61847E435CC44AE728C /* WaveformView.swift in Sources */,

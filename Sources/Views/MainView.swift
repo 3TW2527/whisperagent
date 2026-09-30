@@ -2,7 +2,8 @@ import SwiftUI
 
 public struct MainView: View {
     @StateObject private var storage = ProjectStorageService.shared
-    @StateObject private var settings = AppSettings.shared
+    @ObservedObject private var transcriptionService = WhisperTranscriptionService.shared
+    @ObservedObject private var settings = AppSettings.shared
 
     @State private var searchText = ""
     @State private var isShowingNewProjectAlert = false
@@ -104,31 +105,42 @@ public struct MainView: View {
                 }
             }
         } detail: {
-            // Detail Area
-            if let selected = storage.selectedProject {
-                ProjectDetailView(project: selected) { audioURL in
-                    self.pendingAudioURL = audioURL
-                }
-            } else {
-                VStack(spacing: 16) {
-                    Image(systemName: "graduationcap")
-                        .font(.system(size: 56))
-                        .foregroundColor(.secondary.opacity(0.5))
-
-                    Text("No Lecture Selected")
-                        .font(.title2.bold())
-
-                    Text("Select a lecture project from the sidebar or create a new one.")
-                        .font(.callout)
-                        .foregroundColor(.secondary)
-
-                    Button("Create New Lecture") {
-                        newProjectTitle = "Lecture \(storage.projects.count + 1)"
-                        isShowingNewProjectAlert = true
+            VStack(spacing: 0) {
+                // Persistent Background Transcription Banner
+                if let job = transcriptionService.activeJob {
+                    ActiveJobBanner(job: job)
+                } else if let completed = transcriptionService.recentCompletedJob {
+                    CompletedJobBanner(job: completed) {
+                        transcriptionService.recentCompletedJob = nil
                     }
-                    .buttonStyle(.borderedProminent)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                // Detail Area
+                if let selected = storage.selectedProject {
+                    ProjectDetailView(project: selected) { audioURL in
+                        self.pendingAudioURL = audioURL
+                    }
+                } else {
+                    VStack(spacing: 16) {
+                        Image(systemName: "graduationcap")
+                            .font(.system(size: 56))
+                            .foregroundColor(.secondary.opacity(0.5))
+
+                        Text("No Lecture Selected")
+                            .font(.title2.bold())
+
+                        Text("Select a lecture project from the sidebar or create a new one.")
+                            .font(.callout)
+                            .foregroundColor(.secondary)
+
+                        Button("Create New Lecture") {
+                            newProjectTitle = "Lecture \(storage.projects.count + 1)"
+                            isShowingNewProjectAlert = true
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
         .sheet(item: $pendingAudioURL) { audioURL in
@@ -157,7 +169,98 @@ public struct MainView: View {
     }
 }
 
+struct ActiveJobBanner: View {
+    let job: TranscriptionJob
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "waveform.circle.fill")
+                .font(.title2)
+                .foregroundColor(.accentColor)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 8) {
+                    Text("Transcribing:")
+                        .font(.subheadline.bold())
+                    Text(job.originalFileName)
+                        .font(.subheadline)
+                        .lineLimit(1)
+                    Text("• \(job.projectTitle)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                HStack(spacing: 8) {
+                    ProgressView(value: job.progressFraction)
+                        .progressViewStyle(.linear)
+                        .frame(maxWidth: 240)
+                    Text(job.statusDescription)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Label("Background Task Active", systemImage: "arrow.triangle.2.circlepath")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Color.accentColor.opacity(0.12))
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(Color.accentColor.opacity(0.25)),
+            alignment: .bottom
+        )
+    }
+}
+
+struct CompletedJobBanner: View {
+    let job: TranscriptionJob
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+                .font(.title3)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Transcription Finished!")
+                    .font(.subheadline.bold())
+                Text("Saved transcript for \(job.projectTitle). Temporary audio was removed.")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            Button("Dismiss") {
+                onDismiss()
+            }
+            .buttonStyle(.plain)
+            .font(.caption)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color.secondary.opacity(0.15))
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Color.green.opacity(0.12))
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(Color.green.opacity(0.25)),
+            alignment: .bottom
+        )
+    }
+}
+
 // Extension to allow URL to be used with .sheet(item:)
-extension URL: Identifiable {
+extension URL: @retroactive Identifiable {
     public var id: String { self.absoluteString }
 }

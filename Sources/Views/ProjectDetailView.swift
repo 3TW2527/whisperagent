@@ -188,8 +188,12 @@ public struct ProjectDetailView: View {
                     if VoiceMemosService.shared.isAudioFile(url: url) {
                         onSelectAudio(url)
                     } else {
-                        // If user dropped non-audio onto this bar, still copy to project
-                        try? ProjectStorageService.shared.copyFile(from: url, into: project)
+                        // If user dropped non-audio onto this bar, ingest according to setting
+                        _ = try? ProjectStorageService.shared.ingestFile(
+                            from: url,
+                            into: project,
+                            action: AppSettings.shared.fileIngestionAction
+                        )
                     }
                 }
             }

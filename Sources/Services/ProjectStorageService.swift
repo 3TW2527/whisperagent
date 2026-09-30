@@ -131,7 +131,11 @@ public class ProjectStorageService: ObservableObject {
         }
     }
 
-    public func copyFile(from sourceURL: URL, into project: LectureProject) throws -> LectureFile {
+    public func ingestFile(
+        from sourceURL: URL,
+        into project: LectureProject,
+        action: FileIngestionAction = AppSettings.shared.fileIngestionAction
+    ) throws -> LectureFile {
         let destinationURL = project.folderURL.appendingPathComponent(sourceURL.lastPathComponent)
 
         var finalDestination = destinationURL
@@ -145,9 +149,19 @@ public class ProjectStorageService: ObservableObject {
             counter += 1
         }
 
-        try fileManager.copyItem(at: sourceURL, to: finalDestination)
+        switch action {
+        case .copy:
+            try fileManager.copyItem(at: sourceURL, to: finalDestination)
+        case .move:
+            try fileManager.moveItem(at: sourceURL, to: finalDestination)
+        }
+
         reloadProjects()
         return LectureFile(url: finalDestination)
+    }
+
+    public func copyFile(from sourceURL: URL, into project: LectureProject) throws -> LectureFile {
+        try ingestFile(from: sourceURL, into: project, action: .copy)
     }
 
     public func saveTranscript(markdown: String, baseFileName: String, project: LectureProject) throws -> URL {

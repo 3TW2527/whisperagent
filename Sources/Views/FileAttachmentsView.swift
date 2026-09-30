@@ -5,6 +5,7 @@ public struct FileAttachmentsView: View {
     public let project: LectureProject
     public var onAudioDropped: (URL) -> Void
 
+    @ObservedObject private var settings = AppSettings.shared
     @State private var isTargeted = false
     @State private var previewFile: LectureFile?
     @State private var isShowingQuickLook = false
@@ -16,6 +17,37 @@ public struct FileAttachmentsView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
+            // Action Mode Bar (Copy vs Move)
+            HStack {
+                Text("File action:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Picker("", selection: $settings.fileIngestionAction) {
+                    ForEach(FileIngestionAction.allCases) { action in
+                        Text(action.rawValue).tag(action)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 140)
+
+                Text(settings.fileIngestionAction == .copy ? "(Copies original file)" : "(Moves file into lecture folder)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                Button("Add Files...") {
+                    selectAndAddFiles()
+                }
+                .controlSize(.small)
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Color(NSColor.controlBackgroundColor))
+
+            Divider()
+
             // Drop & File List
             if project.files.isEmpty {
                 VStack(spacing: 16) {
@@ -26,7 +58,7 @@ public struct FileAttachmentsView: View {
                     Text("Drop Lecture Files Here")
                         .font(.headline)
 
-                    Text("Drag & drop lecture slides (PDF, PPTX), notes, syllabus, or documents. They will be copied into this lecture's folder.")
+                    Text("Drag & drop lecture slides (PDF, PPTX), notes, syllabus, or documents. Files will be \(settings.fileIngestionAction == .copy ? "copied" : "moved") into this lecture's folder.")
                         .font(.callout)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -84,9 +116,13 @@ public struct FileAttachmentsView: View {
                         onAudioDropped(url)
                     } else {
                         do {
-                            _ = try ProjectStorageService.shared.copyFile(from: url, into: project)
+                            _ = try ProjectStorageService.shared.ingestFile(
+                                from: url,
+                                into: project,
+                                action: settings.fileIngestionAction
+                            )
                         } catch {
-                            print("Failed to copy dropped file: \(error)")
+                            print("Failed to \(settings.fileIngestionAction.rawValue.lowercased()) dropped file: \(error)")
                         }
                     }
                 }
@@ -107,7 +143,11 @@ public struct FileAttachmentsView: View {
                     if VoiceMemosService.shared.isAudioFile(url: url) {
                         onAudioDropped(url)
                     } else {
-                        try? ProjectStorageService.shared.copyFile(from: url, into: project)
+                        try? ProjectStorageService.shared.ingestFile(
+                            from: url,
+                            into: project,
+                            action: settings.fileIngestionAction
+                        )
                     }
                 }
             }

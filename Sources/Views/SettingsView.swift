@@ -77,6 +77,25 @@ public struct SettingsView: View {
 
                     Divider()
 
+                    // File Ingestion Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Lecture File Ingestion (Copy vs Move)")
+                            .font(.headline)
+
+                        Text("Choose whether files dragged into a lecture project should be copied or moved from their original location.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Picker("Default Action:", selection: $settings.fileIngestionAction) {
+                            ForEach(FileIngestionAction.allCases) { action in
+                                Text(action.description).tag(action)
+                            }
+                        }
+                        .pickerStyle(.radioGroup)
+                    }
+
+                    Divider()
+
                     // Whisper Models Section
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {

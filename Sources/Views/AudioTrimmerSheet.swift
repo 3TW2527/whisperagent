@@ -207,14 +207,20 @@ public struct AudioTrimmerSheet: View {
                 }
             }
 
-            // Progress or Error
-            if isProcessing {
+            // Background Job Progress or Error
+            if let job = transcriptionService.activeJob {
                 VStack(spacing: 8) {
-                    ProgressView(value: transcriptionService.transcriptionProgress)
+                    ProgressView(value: job.progressFraction)
                         .progressViewStyle(.linear)
-                    Text(processingStatus)
-                        .font(.callout)
-                        .foregroundColor(.secondary)
+                    HStack {
+                        Text(job.statusDescription)
+                            .font(.callout)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text("Runs in background — you can close this window")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 .padding(.horizontal)
             } else if let error = transcriptionError {
@@ -232,24 +238,31 @@ public struct AudioTrimmerSheet: View {
 
             // Footer Action Bar
             HStack {
-                Button("Cancel") {
+                Button(transcriptionService.activeJob != nil ? "Close (Keep Running in Background)" : "Cancel") {
                     stopPlayback()
                     onDismiss()
                 }
                 .keyboardShortcut(.cancelAction)
-                .disabled(isProcessing)
 
                 Spacer()
 
-                Button {
-                    startTranscription()
-                } label: {
-                    Label(isProcessing ? "Transcribing..." : "Transcribe & Generate Markdown", systemImage: "waveform.badge.magnifyingglass")
-                        .padding(.horizontal, 8)
+                if transcriptionService.activeJob == nil {
+                    Button {
+                        startTranscription()
+                    } label: {
+                        Label("Transcribe & Generate Markdown", systemImage: "waveform.badge.magnifyingglass")
+                            .padding(.horizontal, 8)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isLoadingAnalysis || analysis.duration == 0)
+                    .keyboardShortcut(.defaultAction)
+                } else {
+                    Button("Dismiss to Background") {
+                        stopPlayback()
+                        onDismiss()
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(isProcessing || isLoadingAnalysis || analysis.duration == 0)
-                .keyboardShortcut(.defaultAction)
             }
             .padding()
             .background(Color(NSColor.windowBackgroundColor))
@@ -296,11 +309,13 @@ public struct AudioTrimmerSheet: View {
         let interval = CMTime(seconds: 0.1, preferredTimescale: 600)
         timeObserverToken = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
             let seconds = time.seconds
-            if self.isPlaying {
-                self.currentPlayhead = seconds
-                if seconds >= self.trimEnd {
-                    self.player?.pause()
-                    self.isPlaying = false
+            Task { @MainActor in
+                if self.isPlaying {
+                    self.currentPlayhead = seconds
+                    if seconds >= self.trimEnd {
+                        self.player?.pause()
+                        self.isPlaying = false
+                    }
                 }
             }
         }
@@ -338,58 +353,15 @@ public struct AudioTrimmerSheet: View {
 
     private func startTranscription() {
         stopPlayback()
-        isProcessing = true
         transcriptionError = nil
-        processingStatus = "Trimming audio file..."
 
-        Task {
-            do {
-                // Step 1: Trim Audio to temporary file
-                let trimmedAudioURL = try await AudioProcessingService.shared.trimAudio(
-                    sourceURL: audioURL,
-                    startTime: trimStart,
-                    endTime: trimEnd
-                )
-
-                // Step 2: Download model if necessary
-                if !transcriptionService.isModelDownloaded(selectedModel) {
-                    await MainActor.run {
-                        self.processingStatus = "Downloading \(selectedModel)..."
-                    }
-                    try await transcriptionService.downloadModel(variant: selectedModel)
-                }
-
-                // Step 3: Transcribe with WhisperKit
-                await MainActor.run {
-                    self.processingStatus = "Transcribing with WhisperKit..."
-                }
-
-                let markdown = try await transcriptionService.transcribe(
-                    audioURL: trimmedAudioURL,
-                    modelVariant: selectedModel,
-                    lectureTitle: project.title,
-                    originalRecordingName: audioURL.lastPathComponent
-                )
-
-                // Step 4: Save Markdown in Project Folder
-                let baseName = audioURL.deletingPathExtension().lastPathComponent + "-transcript"
-                _ = try ProjectStorageService.shared.saveTranscript(
-                    markdown: markdown,
-                    baseFileName: baseName,
-                    project: project
-                )
-
-                await MainActor.run {
-                    self.isProcessing = false
-                    self.onDismiss()
-                }
-            } catch {
-                await MainActor.run {
-                    self.transcriptionError = "Transcription failed: \(error.localizedDescription)"
-                    self.isProcessing = false
-                }
-            }
-        }
+        transcriptionService.startBackgroundJob(
+            sourceURL: audioURL,
+            project: project,
+            modelVariant: selectedModel,
+            trimStart: trimStart,
+            trimEnd: trimEnd
+        )
     }
 
     private func formatDuration(_ seconds: Double) -> String {

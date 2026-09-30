@@ -58,6 +58,9 @@ public struct WhisperModelOption: Identifiable, Hashable, Sendable {
 public class WhisperTranscriptionService: ObservableObject {
     public static let shared = WhisperTranscriptionService()
 
+    @Published public var activeJob: TranscriptionJob?
+    @Published public var recentCompletedJob: TranscriptionJob?
+
     @Published public var isDownloading: Bool = false
     @Published public var downloadProgress: Double = 0.0
     @Published public var currentDownloadModel: String = ""
@@ -140,6 +143,116 @@ public class WhisperTranscriptionService: ObservableObject {
         } catch {
             print("Model download error for \(variant): \(error)")
             throw error
+        }
+    }
+
+    public func startBackgroundJob(
+        sourceURL: URL,
+        project: LectureProject,
+        modelVariant: String,
+        trimStart: TimeInterval,
+        trimEnd: TimeInterval
+    ) {
+        let job = TranscriptionJob(
+            sourceURL: sourceURL,
+            originalFileName: sourceURL.lastPathComponent,
+            projectID: project.id,
+            projectTitle: project.title,
+            modelVariant: modelVariant,
+            trimStart: trimStart,
+            trimEnd: trimEnd,
+            phase: .trimming
+        )
+        self.activeJob = job
+        self.recentCompletedJob = nil
+
+        Task {
+            do {
+                // 1. Trim audio
+                let trimmedAudio = try await AudioProcessingService.shared.trimAudio(
+                    sourceURL: sourceURL,
+                    startTime: trimStart,
+                    endTime: trimEnd
+                )
+
+                // 2. Download model if needed
+                if !isModelDownloaded(modelVariant) {
+                    await MainActor.run {
+                        self.activeJob?.phase = .downloadingModel(progress: 0.0)
+                    }
+                    _ = try await WhisperKit.download(
+                        variant: modelVariant,
+                        progressCallback: { [weak self] (progress: Progress) in
+                            Task { @MainActor [weak self] in
+                                self?.activeJob?.phase = .downloadingModel(progress: progress.fractionCompleted)
+                            }
+                        }
+                    )
+                    await MainActor.run {
+                        self.downloadedModels.insert(modelVariant)
+                    }
+                }
+
+                // 3. Transcribe with WhisperKit
+                await MainActor.run {
+                    self.activeJob?.phase = .transcribing(progress: 0.0)
+                }
+
+                let whisperKit: WhisperKit
+                if let active = self.activeWhisperKit, self.activeModelLoaded == modelVariant {
+                    whisperKit = active
+                } else {
+                    let kit = try await WhisperKit(model: modelVariant)
+                    self.activeWhisperKit = kit
+                    self.activeModelLoaded = modelVariant
+                    whisperKit = kit
+                }
+
+                let results = try await whisperKit.transcribe(
+                    audioPath: trimmedAudio.path,
+                    callback: { [weak self] _ in
+                        Task { @MainActor [weak self] in
+                            if let kit = self?.activeWhisperKit {
+                                self?.activeJob?.phase = .transcribing(progress: kit.progress.fractionCompleted)
+                            }
+                        }
+                        return true
+                    }
+                )
+
+                // 4. Save Markdown
+                let markdown = formatResultsToMarkdown(
+                    results: results,
+                    lectureTitle: project.title,
+                    originalRecordingName: sourceURL.lastPathComponent,
+                    modelName: modelVariant
+                )
+
+                let baseName = sourceURL.deletingPathExtension().lastPathComponent + "-transcript"
+                let savedURL = try ProjectStorageService.shared.saveTranscript(
+                    markdown: markdown,
+                    baseFileName: baseName,
+                    project: project
+                )
+
+                // 5. Cleanup temporary trimmed audio
+                AudioProcessingService.shared.deleteTemporaryAudio(at: trimmedAudio)
+
+                await MainActor.run {
+                    var finishedJob = job
+                    finishedJob.phase = .completed(transcriptURL: savedURL)
+                    self.recentCompletedJob = finishedJob
+                    self.activeJob = nil
+                    ProjectStorageService.shared.reloadProjects()
+                }
+            } catch {
+                await MainActor.run {
+                    var failedJob = job
+                    failedJob.phase = .failed(error: error.localizedDescription)
+                    self.recentCompletedJob = failedJob
+                    self.activeJob = nil
+                }
+            }
         }
     }
 
