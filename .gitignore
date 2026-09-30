@@ -24,3 +24,7 @@ Thumbs.db
 # Temporary / Scratch
 scratch/
 /tmp/
+
+# Distribution
+*.zip
+
