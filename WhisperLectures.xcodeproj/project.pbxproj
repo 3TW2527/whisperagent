@@ -1,0 +1,426 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		02F7A24993FCE4F4AF405168 /* QuickLookPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7947A4EB1FCD8B9C01901FB /* QuickLookPreview.swift */; };
+		09859373B4A77D4BBB2D31AD /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB775FB6721014CBFDEB86FE /* MainView.swift */; };
+		29C2AE728F065216FA1B377C /* AudioProcessingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 399FD0A2A4BFCE8A62C800BE /* AudioProcessingService.swift */; };
+		3823316B92087CF22B8171EC /* WhisperTranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BAF8A35A06CD05A70373595 /* WhisperTranscriptionService.swift */; };
+		438B4DC2F019073D78C71F60 /* ProjectStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CC93B2EDFCF2512B1F2175F /* ProjectStorageService.swift */; };
+		459ECCA0077F34DC0195801F /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = F2901A4EA7C4B41C05A06402 /* WhisperKit */; };
+		474AF61847E435CC44AE728C /* WaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB6DB14F6134962F1168B6D /* WaveformView.swift */; };
+		505293CED130C37CC9964B87 /* TranscriptFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E273D70A8A496F1879E787F /* TranscriptFile.swift */; };
+		5E3F7155E895AEFE3DD9DF7F /* FileAttachmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F31BBD5752286B11F8A31390 /* FileAttachmentsView.swift */; };
+		6EBA613DDD1BB46FFA391BD3 /* LectureFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3D3B4AC3241DC071C9580B1 /* LectureFile.swift */; };
+		9B3EC482B1E0B08D8AB967ED /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AACE37D91B8D16EF78518DB /* SettingsView.swift */; };
+		A355B723F6F554BA69AA3DC8 /* AudioAnalysisResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02B40AFE6B17065F61E52E6D /* AudioAnalysisResult.swift */; };
+		BDCC01D18C60B0BA5124E740 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514C86781B3626BC2EF59F6A /* AppSettings.swift */; };
+		C4AE463A27B87A9D99B9F1FA /* ProjectDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4020DFBA6CAC0670928FBFBC /* ProjectDetailView.swift */; };
+		C96D6A8D150E369C22D7F63F /* AudioTrimmerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 384C5DF751225D7FBA8EA2F4 /* AudioTrimmerSheet.swift */; };
+		D768CE2FDC5AA36EE63C2D36 /* TranscriptsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3250CC5E5B60B2C8513E378D /* TranscriptsView.swift */; };
+		E41E8F739038B29409A056C9 /* WhisperLecturesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DC2C0BA1190A05565348557 /* WhisperLecturesApp.swift */; };
+		E781838F334B78CD088D75DD /* VoiceMemosService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12BBACCC60A7EA435A5AA1E1 /* VoiceMemosService.swift */; };
+		FD49B70F91BA1C7DFE90A893 /* LectureProject.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48944234D075504C3A4B0731 /* LectureProject.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		02B40AFE6B17065F61E52E6D /* AudioAnalysisResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioAnalysisResult.swift; sourceTree = "<group>"; };
+		12BBACCC60A7EA435A5AA1E1 /* VoiceMemosService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMemosService.swift; sourceTree = "<group>"; };
+		1BAF8A35A06CD05A70373595 /* WhisperTranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperTranscriptionService.swift; sourceTree = "<group>"; };
+		22041356948E6520BF1E6F70 /* WhisperLectures.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WhisperLectures.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2CC93B2EDFCF2512B1F2175F /* ProjectStorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectStorageService.swift; sourceTree = "<group>"; };
+		3250CC5E5B60B2C8513E378D /* TranscriptsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptsView.swift; sourceTree = "<group>"; };
+		384C5DF751225D7FBA8EA2F4 /* AudioTrimmerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTrimmerSheet.swift; sourceTree = "<group>"; };
+		399FD0A2A4BFCE8A62C800BE /* AudioProcessingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioProcessingService.swift; sourceTree = "<group>"; };
+		3FB6DB14F6134962F1168B6D /* WaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformView.swift; sourceTree = "<group>"; };
+		4020DFBA6CAC0670928FBFBC /* ProjectDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDetailView.swift; sourceTree = "<group>"; };
+		48944234D075504C3A4B0731 /* LectureProject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LectureProject.swift; sourceTree = "<group>"; };
+		514C86781B3626BC2EF59F6A /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		7AACE37D91B8D16EF78518DB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		7DC2C0BA1190A05565348557 /* WhisperLecturesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperLecturesApp.swift; sourceTree = "<group>"; };
+		7E273D70A8A496F1879E787F /* TranscriptFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptFile.swift; sourceTree = "<group>"; };
+		AB775FB6721014CBFDEB86FE /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
+		B3D3B4AC3241DC071C9580B1 /* LectureFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LectureFile.swift; sourceTree = "<group>"; };
+		F31BBD5752286B11F8A31390 /* FileAttachmentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileAttachmentsView.swift; sourceTree = "<group>"; };
+		F7947A4EB1FCD8B9C01901FB /* QuickLookPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookPreview.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C16B7DD1B53D08053D9B73EB /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				459ECCA0077F34DC0195801F /* WhisperKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		22A489A37C776C7A34069575 = {
+			isa = PBXGroup;
+			children = (
+				8C3368BACFE02D74CF6E5FED /* Sources */,
+				25DA33B732184AA745085D45 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		251D2AF5352BE24ABA5AA1FF /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				3FB6DB14F6134962F1168B6D /* WaveformView.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		25DA33B732184AA745085D45 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				22041356948E6520BF1E6F70 /* WhisperLectures.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		59EA9CDFE3AB4925292BEF44 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				399FD0A2A4BFCE8A62C800BE /* AudioProcessingService.swift */,
+				2CC93B2EDFCF2512B1F2175F /* ProjectStorageService.swift */,
+				12BBACCC60A7EA435A5AA1E1 /* VoiceMemosService.swift */,
+				1BAF8A35A06CD05A70373595 /* WhisperTranscriptionService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		8C3368BACFE02D74CF6E5FED /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				7DC2C0BA1190A05565348557 /* WhisperLecturesApp.swift */,
+				FF241949CE7DFE893C55B201 /* Models */,
+				59EA9CDFE3AB4925292BEF44 /* Services */,
+				A106AF7C5A3E19F1A3B40B8B /* Views */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		A106AF7C5A3E19F1A3B40B8B /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				384C5DF751225D7FBA8EA2F4 /* AudioTrimmerSheet.swift */,
+				F31BBD5752286B11F8A31390 /* FileAttachmentsView.swift */,
+				AB775FB6721014CBFDEB86FE /* MainView.swift */,
+				4020DFBA6CAC0670928FBFBC /* ProjectDetailView.swift */,
+				F7947A4EB1FCD8B9C01901FB /* QuickLookPreview.swift */,
+				7AACE37D91B8D16EF78518DB /* SettingsView.swift */,
+				3250CC5E5B60B2C8513E378D /* TranscriptsView.swift */,
+				251D2AF5352BE24ABA5AA1FF /* Components */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		FF241949CE7DFE893C55B201 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				514C86781B3626BC2EF59F6A /* AppSettings.swift */,
+				02B40AFE6B17065F61E52E6D /* AudioAnalysisResult.swift */,
+				B3D3B4AC3241DC071C9580B1 /* LectureFile.swift */,
+				48944234D075504C3A4B0731 /* LectureProject.swift */,
+				7E273D70A8A496F1879E787F /* TranscriptFile.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3B7A8445C8D4BA599A3FB2E0 /* WhisperLectures */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F68F79DB5DA02401A3FDB514 /* Build configuration list for PBXNativeTarget "WhisperLectures" */;
+			buildPhases = (
+				16023D03CEFCB73DA4A844BD /* Sources */,
+				C16B7DD1B53D08053D9B73EB /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WhisperLectures;
+			packageProductDependencies = (
+				F2901A4EA7C4B41C05A06402 /* WhisperKit */,
+			);
+			productName = WhisperLectures;
+			productReference = 22041356948E6520BF1E6F70 /* WhisperLectures.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		2A446BFE3FFE924D493FD402 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 1BEC85902FB2E0800AE0AAFB /* Build configuration list for PBXProject "WhisperLectures" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 22A489A37C776C7A34069575;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				E830EBEABD492C77D9129CC4 /* XCRemoteSwiftPackageReference "WhisperKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 25DA33B732184AA745085D45 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				3B7A8445C8D4BA599A3FB2E0 /* WhisperLectures */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		16023D03CEFCB73DA4A844BD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BDCC01D18C60B0BA5124E740 /* AppSettings.swift in Sources */,
+				A355B723F6F554BA69AA3DC8 /* AudioAnalysisResult.swift in Sources */,
+				29C2AE728F065216FA1B377C /* AudioProcessingService.swift in Sources */,
+				C96D6A8D150E369C22D7F63F /* AudioTrimmerSheet.swift in Sources */,
+				5E3F7155E895AEFE3DD9DF7F /* FileAttachmentsView.swift in Sources */,
+				6EBA613DDD1BB46FFA391BD3 /* LectureFile.swift in Sources */,
+				FD49B70F91BA1C7DFE90A893 /* LectureProject.swift in Sources */,
+				09859373B4A77D4BBB2D31AD /* MainView.swift in Sources */,
+				C4AE463A27B87A9D99B9F1FA /* ProjectDetailView.swift in Sources */,
+				438B4DC2F019073D78C71F60 /* ProjectStorageService.swift in Sources */,
+				02F7A24993FCE4F4AF405168 /* QuickLookPreview.swift in Sources */,
+				9B3EC482B1E0B08D8AB967ED /* SettingsView.swift in Sources */,
+				505293CED130C37CC9964B87 /* TranscriptFile.swift in Sources */,
+				D768CE2FDC5AA36EE63C2D36 /* TranscriptsView.swift in Sources */,
+				E781838F334B78CD088D75DD /* VoiceMemosService.swift in Sources */,
+				474AF61847E435CC44AE728C /* WaveformView.swift in Sources */,
+				E41E8F739038B29409A056C9 /* WhisperLecturesApp.swift in Sources */,
+				3823316B92087CF22B8171EC /* WhisperTranscriptionService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		099D396E2DFE463F9B178E09 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		362CEB8E80FD0479CDD3D81D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		BCABEC3BAF2E53527CDAF93E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Sources/Resources/WhisperLectures.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Sources/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.whisperlectures.WhisperLectures;
+				PRODUCT_NAME = WhisperLectures;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		CEF371EC9BF38AC89B9F5F0D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Sources/Resources/WhisperLectures.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Sources/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.whisperlectures.WhisperLectures;
+				PRODUCT_NAME = WhisperLectures;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1BEC85902FB2E0800AE0AAFB /* Build configuration list for PBXProject "WhisperLectures" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				362CEB8E80FD0479CDD3D81D /* Debug */,
+				099D396E2DFE463F9B178E09 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F68F79DB5DA02401A3FDB514 /* Build configuration list for PBXNativeTarget "WhisperLectures" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BCABEC3BAF2E53527CDAF93E /* Debug */,
+				CEF371EC9BF38AC89B9F5F0D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E830EBEABD492C77D9129CC4 /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/argmaxinc/WhisperKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		F2901A4EA7C4B41C05A06402 /* WhisperKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E830EBEABD492C77D9129CC4 /* XCRemoteSwiftPackageReference "WhisperKit" */;
+			productName = WhisperKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 2A446BFE3FFE924D493FD402 /* Project object */;
+}

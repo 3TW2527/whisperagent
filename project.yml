@@ -1,0 +1,38 @@
+name: WhisperLectures
+options:
+  bundleIdPrefix: com.whisperlectures
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "15.0"
+  createIntermediateGroups: true
+
+packages:
+  WhisperKit:
+    url: https://github.com/argmaxinc/WhisperKit.git
+    from: 1.0.0
+
+targets:
+  WhisperLectures:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Sources
+        excludes:
+          - "Resources/Info.plist"
+          - "Resources/WhisperLectures.entitlements"
+    dependencies:
+      - package: WhisperKit
+        product: WhisperKit
+    info:
+      path: Sources/Resources/Info.plist
+    entitlements:
+      path: Sources/Resources/WhisperLectures.entitlements
+    settings:
+      base:
+        PRODUCT_NAME: WhisperLectures
+        PRODUCT_BUNDLE_IDENTIFIER: com.whisperlectures.WhisperLectures
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        SWIFT_VERSION: "6.0"
+        ENABLE_HARDENED_RUNTIME: NO
+        CODE_SIGN_IDENTITY: "-"

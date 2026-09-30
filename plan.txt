@@ -1,0 +1,137 @@
+# WhisperLectures - Architecture & Implementation Plan
+
+## 1. Project Overview & Decisions
+- **Framework**: Native macOS App using SwiftUI & AppKit (macOS 14.0+).
+- **Project Structure**: Xcode Project (`.xcodeproj`) with Swift Package Manager (SPM).
+- **Transcription Engine**: **WhisperKit** (by Argmax). 
+  - 100% native Swift, runs on Apple Neural Engine (ANE) and GPU.
+  - Zero Python dependencies or external runtime setup.
+- **Model Management**:
+  - In-app model selector & downloader.
+  - Supports: `whisper-tiny` (~75MB), `whisper-base` (~140MB), `whisper-small` (~460MB), and `distil-whisper-large-v3` (~1.5GB).
+  - Shows download progress, cached models, and allows switching models at any time.
+- **Data Policy**: 
+  - Only `.md` transcript files are kept. 
+  - Temporary audio recordings used during transcription are automatically wiped after markdown export.
+
+---
+
+## 2. Ingestion: How Voice Memos & iCloud Audio Import Works
+
+Because macOS treats Voice Memos and iCloud Drive in specific ways, the app will support **two seamless workflows**:
+
+### Method A: Drag & Drop directly from the macOS "Voice Memos" App (Instant)
+- Apple Watch and iPhone recordings automatically sync to the macOS Voice Memos app via iCloud in the background.
+- You can simply **drag any memo directly from the macOS Voice Memos window** and drop it onto the Lecture Project window.
+- The app intercepts the dragged audio item, copies it to temporary scratch space, and opens the **Audio Trimmer Modal** immediately.
+
+### Method B: Native Finder Sheet (Pre-configured to iCloud Drive)
+- If you save recordings from iPhone/Watch to iCloud Drive (or any folder in the Files app), clicking **"Import Audio..."** opens a native macOS `NSOpenPanel`.
+- The panel opens by default to **iCloud Drive** (`com~apple~CloudDocs`), allowing you to pick any `.m4a`, `.mp3`, or `.wav` file in column or list view.
+- A quick-filter button can also jump directly to a designated `iCloud Drive/Voice Memos` or `iCloud Drive/Lectures` folder.
+
+---
+
+## 3. Silence Avoidance & Audio Trimmer Pipeline
+
+To prevent the known Whisper bug where leading silence causes hallucinations or transcript corruption:
+
+```text
+[ Audio Source (.m4a/.mp3) ]
+            │
+            ▼
+[ Waveform Generator (AVAudioFile RMS Samples) ]
+            │
+            ▼
+[ Auto-Silence Detector (Noise threshold algorithm) ] ──> Suggests Trim Start Point
+            │
+            ▼
+[ Interactive Waveform UI ]
+  - Start Handle & End Handle
+  - Real-time Playhead & Play/Pause Preview
+  - Visual timecode display (00:02:15 / 01:15:30)
+            │
+            ▼
+[ AVAssetExportSession ] ──> Exports trimmed segment to /tmp/scratch.m4a
+            │
+            ▼
+[ WhisperKit Engine ] ────> Transcribes audio segment
+            │
+            ▼
+[ Markdown Generator ] ───> Formats & saves [Lecture_Name]/transcript.md
+            │
+            ▼
+[ Cleanup Routine ] ──────> Deletes /tmp/scratch.m4a (zero audio stored)
+```
+
+---
+
+## 4. File Organization & Storage Layout
+
+User configures a root directory in Settings (Local folder or iCloud Drive). Inside that folder:
+
+```text
+[Configured Root Folder] (e.g. ~/Library/Mobile Documents/com~apple~CloudDocs/Lectures)
+│
+├── CS101 - Lecture 01 - Introduction/
+│   ├── transcript.md                 <-- Generated Markdown from Whisper
+│   ├── lecture_slides.pdf            <-- Dragged & dropped
+│   └── syllabus.pdf
+│
+├── MATH202 - Lecture 04 - Linear Algebra/
+│   ├── transcript.md
+│   ├── slides.pdf
+│   └── homework_1.docx
+└── ...
+```
+
+- **Drag & Drop for Files**: Dragging PDFs, PPTX, Word docs, or images into the project copies them into the lecture folder via `FileManager.copyItem`.
+- **Quick Look**: Press Spacebar or click Preview to inspect any slide or PDF directly inside the app.
+- **Finder Integration**: Single click to "Reveal in Finder".
+
+---
+
+## 5. UI Architecture
+
+1. **Navigation Split View**:
+   - **Left Sidebar**: 
+     - "New Lecture" button (`[+]`).
+     - List of lecture projects with search and date grouping.
+     - Bottom bar: Storage path indicator & Settings gear.
+   - **Main Detail Area**:
+     - **Lecture Header**: Title, date, "Transcribe New Recording" button, "Open in Finder".
+     - **Transcripts View**: Displays markdown transcript with formatting, search, and export.
+     - **Files & Attachments Grid**: Shows lecture files with thumbnails, sizes, and Quick Look. Supports drag-and-drop file ingestion.
+2. **Audio Trimmer Modal**:
+   - Large interactive waveform with draggable start/end handles.
+   - Play/pause audio preview to verify speech start.
+   - Model switcher dropdown (`tiny`, `base`, `small`, `distil-large-v3`).
+   - "Auto-Trim Silence" button.
+   - "Transcribe & Generate Markdown" primary action.
+3. **Settings Modal**:
+   - Root storage path selector (supports iCloud Drive or local disk).
+   - Whisper Model Manager (download, cache size, delete, active model selection).
+
+---
+
+## 6. Implementation Steps
+
+1. **Phase 1: Project Scaffolding & Dependencies**
+   - Initialize the macOS Xcode project structure with WhisperKit SPM package dependency.
+   - Configure App Sandbox and file access entitlements.
+2. **Phase 2: Storage & Project Service**
+   - Persistent root directory picker with security-scoped bookmark.
+   - Project directory management (create, list, rename, delete).
+   - File copy service for dragged-and-dropped lecture files.
+3. **Phase 3: Audio Waveform Engine & Trimmer**
+   - Read audio samples using `AVAudioFile` and compute RMS amplitude buckets.
+   - Leading silence detection logic.
+   - SwiftUI interactive waveform view with dual draggable handles and playback scrubber.
+4. **Phase 4: WhisperKit Transcription & Markdown Generation**
+   - Model download manager with real-time download progress tracking.
+   - In-memory / background transcription loop.
+   - Structured markdown generation (`# Lecture Title`, metadata, timestamps, paragraphs).
+   - Instant deletion of temporary audio files upon completion.
+5. **Phase 5: UI Assembly & Testing**
+   - Split view layout, drag-and-drop drop zones, Quick Look preview.
+   - Build and verify on macOS.
