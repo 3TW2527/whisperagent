@@ -18,12 +18,14 @@
 		5E3F7155E895AEFE3DD9DF7F /* FileAttachmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F31BBD5752286B11F8A31390 /* FileAttachmentsView.swift */; };
 		6C25D6EC2BFA7D7D254184B9 /* TranscriptionJob.swift in Sources */ = {isa = PBXBuildFile; fileRef = E58AB643567A50F8F18AE702 /* TranscriptionJob.swift */; };
 		6EBA613DDD1BB46FFA391BD3 /* LectureFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3D3B4AC3241DC071C9580B1 /* LectureFile.swift */; };
+		7D572A2B09CA41B34A21CB42 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 4353ECD592B677340C7A839A /* AppIcon.icns */; };
 		9B3EC482B1E0B08D8AB967ED /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AACE37D91B8D16EF78518DB /* SettingsView.swift */; };
 		A355B723F6F554BA69AA3DC8 /* AudioAnalysisResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02B40AFE6B17065F61E52E6D /* AudioAnalysisResult.swift */; };
 		BDCC01D18C60B0BA5124E740 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514C86781B3626BC2EF59F6A /* AppSettings.swift */; };
 		C4AE463A27B87A9D99B9F1FA /* ProjectDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4020DFBA6CAC0670928FBFBC /* ProjectDetailView.swift */; };
 		C96D6A8D150E369C22D7F63F /* AudioTrimmerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 384C5DF751225D7FBA8EA2F4 /* AudioTrimmerSheet.swift */; };
 		D768CE2FDC5AA36EE63C2D36 /* TranscriptsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3250CC5E5B60B2C8513E378D /* TranscriptsView.swift */; };
+		DDF0BABC0431D23F65F5DBDB /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A21AC9E765EB70E9B1845538 /* Assets.xcassets */; };
 		E41E8F739038B29409A056C9 /* WhisperLecturesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DC2C0BA1190A05565348557 /* WhisperLecturesApp.swift */; };
 		E781838F334B78CD088D75DD /* VoiceMemosService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12BBACCC60A7EA435A5AA1E1 /* VoiceMemosService.swift */; };
 		FD49B70F91BA1C7DFE90A893 /* LectureProject.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48944234D075504C3A4B0731 /* LectureProject.swift */; };
@@ -40,11 +42,13 @@
 		399FD0A2A4BFCE8A62C800BE /* AudioProcessingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioProcessingService.swift; sourceTree = "<group>"; };
 		3FB6DB14F6134962F1168B6D /* WaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformView.swift; sourceTree = "<group>"; };
 		4020DFBA6CAC0670928FBFBC /* ProjectDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDetailView.swift; sourceTree = "<group>"; };
+		4353ECD592B677340C7A839A /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		48944234D075504C3A4B0731 /* LectureProject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LectureProject.swift; sourceTree = "<group>"; };
 		514C86781B3626BC2EF59F6A /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		7AACE37D91B8D16EF78518DB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		7DC2C0BA1190A05565348557 /* WhisperLecturesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperLecturesApp.swift; sourceTree = "<group>"; };
 		7E273D70A8A496F1879E787F /* TranscriptFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptFile.swift; sourceTree = "<group>"; };
+		A21AC9E765EB70E9B1845538 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AB775FB6721014CBFDEB86FE /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
 		B3D3B4AC3241DC071C9580B1 /* LectureFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LectureFile.swift; sourceTree = "<group>"; };
 		E58AB643567A50F8F18AE702 /* TranscriptionJob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionJob.swift; sourceTree = "<group>"; };
@@ -104,6 +108,7 @@
 			children = (
 				7DC2C0BA1190A05565348557 /* WhisperLecturesApp.swift */,
 				FF241949CE7DFE893C55B201 /* Models */,
+				F989C95BD9B22CE8EA9C7C0E /* Resources */,
 				59EA9CDFE3AB4925292BEF44 /* Services */,
 				A106AF7C5A3E19F1A3B40B8B /* Views */,
 			);
@@ -123,6 +128,15 @@
 				251D2AF5352BE24ABA5AA1FF /* Components */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		F989C95BD9B22CE8EA9C7C0E /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				4353ECD592B677340C7A839A /* AppIcon.icns */,
+				A21AC9E765EB70E9B1845538 /* Assets.xcassets */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		FF241949CE7DFE893C55B201 /* Models */ = {
@@ -146,6 +160,7 @@
 			buildConfigurationList = F68F79DB5DA02401A3FDB514 /* Build configuration list for PBXNativeTarget "WhisperLectures" */;
 			buildPhases = (
 				16023D03CEFCB73DA4A844BD /* Sources */,
+				717251EC2A78FE91ACC15C02 /* Resources */,
 				C16B7DD1B53D08053D9B73EB /* Frameworks */,
 			);
 			buildRules = (
@@ -192,6 +207,18 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		717251EC2A78FE91ACC15C02 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7D572A2B09CA41B34A21CB42 /* AppIcon.icns in Resources */,
+				DDF0BABC0431D23F65F5DBDB /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		16023D03CEFCB73DA4A844BD /* Sources */ = {
