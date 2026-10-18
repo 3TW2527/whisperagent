@@ -3,11 +3,15 @@ import AVFoundation
 
 public struct AudioTrimmerSheet: View {
     public let audioURL: URL
-    public let project: LectureProject
+    public let course: Course
     public var onDismiss: () -> Void
 
-    @StateObject private var transcriptionService = WhisperTranscriptionService.shared
-    @StateObject private var appSettings = AppSettings.shared
+    /// Sentinel lecture value meaning "create a new lecture".
+    private static let newLectureTag = 0
+
+    @ObservedObject private var transcriptionService = WhisperTranscriptionService.shared
+    @ObservedObject private var appSettings = AppSettings.shared
+    @ObservedObject private var storage = CourseStorageService.shared
 
     @State private var analysis: AudioAnalysisResult = .empty
     @State private var isLoadingAnalysis = true
@@ -22,14 +26,34 @@ public struct AudioTrimmerSheet: View {
     @State private var timeObserverToken: Any?
 
     @State private var selectedModel: String = AppSettings.shared.selectedModelVariant
-    @State private var isProcessing = false
-    @State private var processingStatus = ""
     @State private var transcriptionError: String?
 
-    public init(audioURL: URL, project: LectureProject, onDismiss: @escaping () -> Void) {
+    @State private var lectureTag: Int
+    @State private var newLectureTitle = ""
+    @State private var newLectureDate: Date
+    @State private var customName = ""
+
+    public init(audioURL: URL, course: Course, initialLecture: Int?, onDismiss: @escaping () -> Void) {
         self.audioURL = audioURL
-        self.project = project
+        self.course = course
         self.onDismiss = onDismiss
+        let fallback = course.lectures.last?.number ?? Self.newLectureTag
+        _lectureTag = State(initialValue: initialLecture.flatMap { course.lecture(number: $0)?.number } ?? fallback)
+        // A new lecture defaults to when the audio was recorded.
+        let values = try? audioURL.resourceValues(forKeys: [.creationDateKey])
+        _newLectureDate = State(initialValue: values?.creationDate ?? Date())
+    }
+
+    /// The course as currently loaded, so numbering reflects lectures created meanwhile.
+    private var liveCourse: Course {
+        storage.course(id: course.id) ?? course
+    }
+
+    private var proposedName: String {
+        if lectureTag == Self.newLectureTag {
+            return String(format: "%@_L%02d_R1", liveCourse.filePrefix, liveCourse.metadata.nextLectureNumber)
+        }
+        return storage.proposedRecordingName(courseID: course.id, lectureNumber: lectureTag) ?? ""
     }
 
     public var body: some View {
@@ -39,7 +63,7 @@ public struct AudioTrimmerSheet: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Audio Trimmer & Transcription")
                         .font(.title2.bold())
-                    Text("Source: \(audioURL.lastPathComponent)  •  Project: \(project.title)")
+                    Text("Source: \(audioURL.lastPathComponent)  •  Course: \(course.displayName)")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -167,11 +191,56 @@ public struct AudioTrimmerSheet: View {
 
                     Divider()
 
-                    // Model Selection & Retention Notice
-                    VStack(alignment: .leading, spacing: 12) {
+                    // Destination: lecture and file name
+                    VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Text("Whisper Model:")
+                            Text("Lecture:")
                                 .font(.subheadline.bold())
+                                .frame(width: 110, alignment: .leading)
+                            Picker("", selection: $lectureTag) {
+                                ForEach(liveCourse.lectures.reversed()) { lecture in
+                                    Text("\(lecture.label) · \(lecture.title.isEmpty ? DateFormats.display.string(from: lecture.date) : lecture.title)")
+                                        .tag(lecture.number)
+                                }
+                                Divider()
+                                Text("New lecture (L\(String(format: "%02d", liveCourse.metadata.nextLectureNumber)))")
+                                    .tag(Self.newLectureTag)
+                            }
+                            .labelsHidden()
+                            .frame(width: 320)
+                            Spacer()
+                        }
+
+                        if lectureTag == Self.newLectureTag {
+                            HStack {
+                                Text("")
+                                    .frame(width: 110)
+                                TextField("Title (optional)", text: $newLectureTitle)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 200)
+                                DatePicker("", selection: $newLectureDate)
+                                    .labelsHidden()
+                                Spacer()
+                            }
+                        }
+
+                        HStack {
+                            Text("File name:")
+                                .font(.subheadline.bold())
+                                .frame(width: 110, alignment: .leading)
+                            TextField(proposedName, text: $customName)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 320)
+                            Text(".\(appSettings.orderedTranscriptFormats.map(\.fileExtension).joined(separator: " / ."))")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+
+                        HStack {
+                            Text("Whisper model:")
+                                .font(.subheadline.bold())
+                                .frame(width: 110, alignment: .leading)
 
                             Picker("", selection: $selectedModel) {
                                 ForEach(WhisperModelOption.availableModels) { option in
@@ -179,6 +248,7 @@ public struct AudioTrimmerSheet: View {
                                         .tag(option.id)
                                 }
                             }
+                            .labelsHidden()
                             .pickerStyle(.menu)
                             .frame(width: 320)
 
@@ -187,7 +257,7 @@ public struct AudioTrimmerSheet: View {
                                     .foregroundColor(.green)
                                     .font(.caption)
                             } else {
-                                Label("Will download on first run", systemImage: "arrow.down.circle")
+                                Label("Downloads on first run", systemImage: "arrow.down.circle")
                                     .foregroundColor(.secondary)
                                     .font(.caption)
                             }
@@ -198,7 +268,7 @@ public struct AudioTrimmerSheet: View {
                         HStack(spacing: 8) {
                             Image(systemName: "info.circle")
                                 .foregroundColor(.blue)
-                            Text("The audio file will be trimmed and transcribed to \(appSettings.transcriptFormat == .plainText ? "Plain Text (.txt)" : "Markdown (.md)"). The original audio will be discarded after transcription to save iCloud and disk space.")
+                            Text("Leave the file name empty to use the automatic name. Transcription runs in the background, and you can queue more recordings straight away. Your original audio file isn't changed.")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -207,23 +277,7 @@ public struct AudioTrimmerSheet: View {
                 }
             }
 
-            // Background Job Progress or Error
-            if let job = transcriptionService.activeJob {
-                VStack(spacing: 8) {
-                    ProgressView(value: job.progressFraction)
-                        .progressViewStyle(.linear)
-                    HStack {
-                        Text(job.statusDescription)
-                            .font(.callout)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Text("Runs in background — you can close this window")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding(.horizontal)
-            } else if let error = transcriptionError {
+            if let error = transcriptionError {
                 HStack {
                     Image(systemName: "exclamationmark.circle.fill")
                         .foregroundColor(.red)
@@ -238,7 +292,7 @@ public struct AudioTrimmerSheet: View {
 
             // Footer Action Bar
             HStack {
-                Button(transcriptionService.activeJob != nil ? "Close (Keep Running in Background)" : "Cancel") {
+                Button("Cancel") {
                     stopPlayback()
                     onDismiss()
                 }
@@ -246,28 +300,20 @@ public struct AudioTrimmerSheet: View {
 
                 Spacer()
 
-                if transcriptionService.activeJob == nil {
-                    Button {
-                        startTranscription()
-                    } label: {
-                        Label("Transcribe Audio (\(appSettings.transcriptFormat == .plainText ? "Plain Text" : "Markdown"))", systemImage: "waveform.badge.magnifyingglass")
-                            .padding(.horizontal, 8)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isLoadingAnalysis || analysis.duration == 0)
-                    .keyboardShortcut(.defaultAction)
-                } else {
-                    Button("Dismiss to Background") {
-                        stopPlayback()
-                        onDismiss()
-                    }
-                    .buttonStyle(.borderedProminent)
+                Button {
+                    startTranscription()
+                } label: {
+                    Label("Start Transcription", systemImage: "waveform.badge.magnifyingglass")
+                        .padding(.horizontal, 8)
                 }
+                .buttonStyle(.borderedProminent)
+                .disabled(isLoadingAnalysis || analysis.duration == 0)
+                .keyboardShortcut(.defaultAction)
             }
             .padding()
             .background(Color(NSColor.windowBackgroundColor))
         }
-        .frame(minWidth: 700, minHeight: 460)
+        .frame(minWidth: 720, minHeight: 520)
         .onAppear {
             setupAudio()
         }
@@ -352,16 +398,28 @@ public struct AudioTrimmerSheet: View {
     }
 
     private func startTranscription() {
-        stopPlayback()
         transcriptionError = nil
-
-        transcriptionService.startBackgroundJob(
-            sourceURL: audioURL,
-            project: project,
-            modelVariant: selectedModel,
-            trimStart: trimStart,
-            trimEnd: trimEnd
-        )
+        do {
+            var lectureNumber = lectureTag
+            if lectureTag == Self.newLectureTag {
+                lectureNumber = try storage.addLecture(courseID: course.id, title: newLectureTitle, date: newLectureDate).number
+                lectureTag = lectureNumber
+            }
+            let trimmedName = customName.trimmingCharacters(in: .whitespacesAndNewlines)
+            try transcriptionService.enqueue(
+                sourceURL: audioURL,
+                courseID: course.id,
+                lectureNumber: lectureNumber,
+                customName: trimmedName.isEmpty ? nil : trimmedName,
+                modelVariant: selectedModel,
+                trimStart: trimStart,
+                trimEnd: trimEnd
+            )
+            stopPlayback()
+            onDismiss()
+        } catch {
+            transcriptionError = error.localizedDescription
+        }
     }
 
     private func formatDuration(_ seconds: Double) -> String {

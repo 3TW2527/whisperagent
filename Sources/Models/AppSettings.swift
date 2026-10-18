@@ -10,30 +10,40 @@ public enum FileIngestionAction: String, CaseIterable, Identifiable, Sendable {
     public var description: String {
         switch self {
         case .copy: return "Copy (keep original in place)"
-        case .move: return "Move (relocate into lecture folder)"
+        case .move: return "Move (relocate into the course folder)"
         }
     }
 }
 
-public enum TranscriptFormat: String, CaseIterable, Identifiable, Sendable {
-    case markdown = "Markdown (.md)"
-    case plainText = "Plain Text (.txt)"
+public enum TranscriptFormat: String, CaseIterable, Identifiable, Codable, Sendable {
+    case markdown = "md"
+    case plainText = "txt"
+    case srt = "srt"
+    case vtt = "vtt"
 
     public var id: String { rawValue }
 
-    public var fileExtension: String {
+    public var fileExtension: String { rawValue }
+
+    public var displayName: String {
         switch self {
-        case .markdown: return "md"
-        case .plainText: return "txt"
+        case .markdown: return "Markdown (.md)"
+        case .plainText: return "Plain Text (.txt)"
+        case .srt: return "SubRip Subtitles (.srt)"
+        case .vtt: return "WebVTT Subtitles (.vtt)"
         }
     }
 
     public var description: String {
         switch self {
         case .markdown:
-            return "Rich Markdown formatted with timestamps and metadata headers"
+            return "Metadata header plus timestamped paragraphs. Best for LLMs and reading."
         case .plainText:
-            return "Plain text transcript only (no timestamps or formatting)"
+            return "Spoken text only, in paragraphs, with no timestamps."
+        case .srt:
+            return "Subtitle cues with millisecond timestamps, for video players and editors."
+        case .vtt:
+            return "Web subtitle format, for browsers and web video players."
         }
     }
 }
@@ -48,6 +58,8 @@ public class AppSettings: ObservableObject {
     private let silenceThresholdKey = "WhisperLectures_SilenceThreshold"
     private let fileIngestionActionKey = "WhisperLectures_FileIngestionAction"
     private let transcriptFormatKey = "WhisperLectures_TranscriptFormat"
+    private let transcriptFormatsKey = "WhisperLectures_TranscriptFormats"
+    private let maxConcurrentJobsKey = "WhisperLectures_MaxConcurrentJobs"
 
     @Published public var rootFolderURL: URL {
         didSet {
@@ -73,10 +85,29 @@ public class AppSettings: ObservableObject {
         }
     }
 
-    @Published public var transcriptFormat: TranscriptFormat {
+    /// Formats written for every new transcription. Never empty.
+    @Published public var transcriptFormats: Set<TranscriptFormat> {
         didSet {
-            UserDefaults.standard.set(transcriptFormat.rawValue, forKey: transcriptFormatKey)
+            if transcriptFormats.isEmpty {
+                transcriptFormats = [.markdown]
+                return
+            }
+            UserDefaults.standard.set(transcriptFormats.map(\.rawValue).sorted(), forKey: transcriptFormatsKey)
         }
+    }
+
+    /// How many transcription jobs may run at the same time.
+    @Published public var maxConcurrentJobs: Int {
+        didSet {
+            UserDefaults.standard.set(maxConcurrentJobs, forKey: maxConcurrentJobsKey)
+        }
+    }
+
+    public static let concurrentJobsRange = 1...4
+
+    /// Formats in a stable display order.
+    public var orderedTranscriptFormats: [TranscriptFormat] {
+        TranscriptFormat.allCases.filter { transcriptFormats.contains($0) }
     }
 
     private init() {
@@ -84,9 +115,19 @@ public class AppSettings: ObservableObject {
         let savedActionStr = UserDefaults.standard.string(forKey: fileIngestionActionKey) ?? "Copy"
         self.fileIngestionAction = FileIngestionAction(rawValue: savedActionStr) ?? .copy
 
-        // Load Transcript Format
-        let savedFormatStr = UserDefaults.standard.string(forKey: transcriptFormatKey) ?? TranscriptFormat.markdown.rawValue
-        self.transcriptFormat = TranscriptFormat(rawValue: savedFormatStr) ?? .markdown
+        // Load Transcript Formats (falls back to the older single-format setting)
+        if let saved = UserDefaults.standard.stringArray(forKey: transcriptFormatsKey) {
+            let formats = Set(saved.compactMap(TranscriptFormat.init(rawValue:)))
+            self.transcriptFormats = formats.isEmpty ? [.markdown] : formats
+        } else if UserDefaults.standard.string(forKey: transcriptFormatKey) == "Plain Text (.txt)" {
+            self.transcriptFormats = [.plainText]
+        } else {
+            self.transcriptFormats = [.markdown]
+        }
+
+        // Load Concurrency Limit
+        let savedJobs = UserDefaults.standard.integer(forKey: maxConcurrentJobsKey)
+        self.maxConcurrentJobs = Self.concurrentJobsRange.contains(savedJobs) ? savedJobs : 2
 
         // Load Model
         let savedModel = UserDefaults.standard.string(forKey: selectedModelKey) ?? "openai_whisper-base"

@@ -10,7 +10,7 @@ public enum FileViewMode: String, CaseIterable, Identifiable {
 }
 
 public struct FileAttachmentsView: View {
-    public let project: LectureProject
+    public let course: Course
     public var onAudioDropped: (URL) -> Void
 
     @ObservedObject private var settings = AppSettings.shared
@@ -22,16 +22,16 @@ public struct FileAttachmentsView: View {
     @State private var isShowingQuickLook = false
     @State private var keyMonitor: Any?
 
-    public init(project: LectureProject, onAudioDropped: @escaping (URL) -> Void) {
-        self.project = project
+    public init(course: Course, onAudioDropped: @escaping (URL) -> Void) {
+        self.course = course
         self.onAudioDropped = onAudioDropped
     }
 
     private var activeSelectedFile: LectureFile? {
-        if let id = selectedFileID, let file = project.files.first(where: { $0.id == id }) {
+        if let id = selectedFileID, let file = course.materials.first(where: { $0.id == id }) {
             return file
         }
-        return project.files.first
+        return course.materials.first
     }
 
     public var body: some View {
@@ -50,7 +50,7 @@ public struct FileAttachmentsView: View {
                 .pickerStyle(.segmented)
                 .frame(width: 140)
 
-                Text(settings.fileIngestionAction == .copy ? "(Copies original)" : "(Moves into lecture)")
+                Text(settings.fileIngestionAction == .copy ? "(Copies original)" : "(Moves into course)")
                     .font(.caption2)
                     .foregroundColor(.secondary)
 
@@ -82,16 +82,16 @@ public struct FileAttachmentsView: View {
             Divider()
 
             // Drop & File Content
-            if project.files.isEmpty {
+            if course.materials.isEmpty {
                 VStack(spacing: 16) {
                     Image(systemName: "arrow.down.doc")
                         .font(.system(size: 44))
                         .foregroundColor(isTargeted ? .accentColor : .secondary.opacity(0.6))
 
-                    Text("Drop Lecture Files Here")
+                    Text("Drop Course Materials Here")
                         .font(.headline)
 
-                    Text("Drag & drop lecture slides (PDF, PPTX), notes, syllabus, or documents. Files will be \(settings.fileIngestionAction == .copy ? "copied" : "moved") into this lecture's folder.")
+                    Text("Drag & drop lecture slides (PDF, PPTX), notes, syllabus, or documents. Files will be \(settings.fileIngestionAction == .copy ? "copied" : "moved") into this course's materials folder.")
                         .font(.callout)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -141,10 +141,10 @@ public struct FileAttachmentsView: View {
         .onDisappear {
             removeKeyMonitor()
         }
-        .onChange(of: project.id) {
+        .onChange(of: course.id) {
             validateSelection()
         }
-        .onChange(of: project.files) {
+        .onChange(of: course.materials) {
             validateSelection()
         }
         // Fallback spacebar shortcut trigger
@@ -162,7 +162,7 @@ public struct FileAttachmentsView: View {
     private var cardGridView: some View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 16)], spacing: 16) {
-                ForEach(project.files) { file in
+                ForEach(course.materials) { file in
                     FileCardView(
                         file: file,
                         isSelected: selectedFileID == file.id,
@@ -214,7 +214,7 @@ public struct FileAttachmentsView: View {
 
             ScrollView {
                 LazyVStack(spacing: 2) {
-                    ForEach(project.files) { file in
+                    ForEach(course.materials) { file in
                         FileListRowView(
                             file: file,
                             isSelected: selectedFileID == file.id,
@@ -234,10 +234,10 @@ public struct FileAttachmentsView: View {
 
     // MARK: - Selection & Navigation
     private func validateSelection() {
-        if let currentID = selectedFileID, project.files.contains(where: { $0.id == currentID }) {
+        if let currentID = selectedFileID, course.materials.contains(where: { $0.id == currentID }) {
             return
         }
-        selectedFileID = project.files.first?.id
+        selectedFileID = course.materials.first?.id
     }
 
     private func openQuickLook(for file: LectureFile) {
@@ -256,10 +256,10 @@ public struct FileAttachmentsView: View {
     }
 
     private func navigateSelection(step: Int) {
-        guard !project.files.isEmpty else { return }
-        let currentIndex = project.files.firstIndex(where: { $0.id == selectedFileID }) ?? 0
-        let nextIndex = min(max(0, currentIndex + step), project.files.count - 1)
-        let nextFile = project.files[nextIndex]
+        guard !course.materials.isEmpty else { return }
+        let currentIndex = course.materials.firstIndex(where: { $0.id == selectedFileID }) ?? 0
+        let nextIndex = min(max(0, currentIndex + step), course.materials.count - 1)
+        let nextFile = course.materials[nextIndex]
         selectedFileID = nextFile.id
 
         // If Quick Look is currently open, dynamically update the previewed file like Finder
@@ -316,9 +316,9 @@ public struct FileAttachmentsView: View {
                         onAudioDropped(url)
                     } else {
                         do {
-                            _ = try ProjectStorageService.shared.ingestFile(
+                            _ = try CourseStorageService.shared.ingestMaterial(
                                 from: url,
-                                into: project,
+                                courseID: course.id,
                                 action: settings.fileIngestionAction
                             )
                         } catch {
@@ -332,7 +332,7 @@ public struct FileAttachmentsView: View {
 
     private func selectAndAddFiles() {
         let panel = NSOpenPanel()
-        panel.title = "Select Lecture Files to Add"
+        panel.title = "Select Course Materials to Add"
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = true
@@ -343,9 +343,9 @@ public struct FileAttachmentsView: View {
                     if VoiceMemosService.shared.isAudioFile(url: url) {
                         onAudioDropped(url)
                     } else {
-                        _ = try? ProjectStorageService.shared.ingestFile(
+                        _ = try? CourseStorageService.shared.ingestMaterial(
                             from: url,
-                            into: project,
+                            courseID: course.id,
                             action: settings.fileIngestionAction
                         )
                     }
@@ -399,15 +399,15 @@ struct FileCardView: View {
                 onOpenPreview()
             }
             Button("Open with Default App") {
-                ProjectStorageService.shared.openFile(url: file.url)
+                CourseStorageService.shared.openFile(url: file.url)
             }
             Button("Reveal in Finder") {
-                ProjectStorageService.shared.revealInFinder(url: file.url)
+                CourseStorageService.shared.revealInFinder(url: file.url)
             }
             Divider()
             Button("Delete", role: .destructive) {
                 try? FileManager.default.removeItem(at: file.url)
-                ProjectStorageService.shared.reloadProjects()
+                CourseStorageService.shared.reload()
             }
         }
     }
@@ -488,15 +488,15 @@ struct FileListRowView: View {
                 onOpenPreview()
             }
             Button("Open with Default App") {
-                ProjectStorageService.shared.openFile(url: file.url)
+                CourseStorageService.shared.openFile(url: file.url)
             }
             Button("Reveal in Finder") {
-                ProjectStorageService.shared.revealInFinder(url: file.url)
+                CourseStorageService.shared.revealInFinder(url: file.url)
             }
             Divider()
             Button("Delete", role: .destructive) {
                 try? FileManager.default.removeItem(at: file.url)
-                ProjectStorageService.shared.reloadProjects()
+                CourseStorageService.shared.reload()
             }
         }
     }

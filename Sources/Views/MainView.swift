@@ -1,262 +1,296 @@
 import SwiftUI
 
+struct PendingAudio: Identifiable, Hashable {
+    let id = UUID()
+    let url: URL
+    let courseID: String
+    let lectureNumber: Int?
+}
+
+enum ActiveSheet: Identifiable {
+    case newCourse
+    case settings
+    case askAI(courseID: String?)
+    case migration
+    case trimmer(PendingAudio)
+
+    var id: String {
+        switch self {
+        case .newCourse: return "newCourse"
+        case .settings: return "settings"
+        case .askAI(let id): return "askAI-\(id ?? "all")"
+        case .migration: return "migration"
+        case .trimmer(let pending): return "trimmer-\(pending.id)"
+        }
+    }
+}
+
 public struct MainView: View {
-    @StateObject private var storage = ProjectStorageService.shared
-    @ObservedObject private var transcriptionService = WhisperTranscriptionService.shared
+    @StateObject private var storage = CourseStorageService.shared
     @ObservedObject private var settings = AppSettings.shared
 
     @State private var searchText = ""
-    @State private var isShowingNewProjectAlert = false
-    @State private var newProjectTitle = ""
-    @State private var isShowingSettings = false
-    @State private var pendingAudioURL: URL?
+    @State private var selectedTags: Set<String> = []
+    @State private var activeSheet: ActiveSheet?
+    /// Audio files waiting for the trimmer, shown one after another.
+    @State private var audioQueue: [PendingAudio] = []
 
     public init() {}
 
-    public var filteredProjects: [LectureProject] {
-        if searchText.isEmpty {
-            return storage.projects
-        } else {
-            return storage.projects.filter {
-                $0.title.localizedCaseInsensitiveContains(searchText)
+    private var filteredCourses: [Course] {
+        storage.courses.filter { course in
+            let matchesTags = selectedTags.allSatisfy { tag in
+                course.tags.contains { $0.caseInsensitiveCompare(tag) == .orderedSame }
             }
+            guard matchesTags else { return false }
+            guard !searchText.isEmpty else { return true }
+            return course.name.localizedCaseInsensitiveContains(searchText)
+                || course.metadata.code.localizedCaseInsensitiveContains(searchText)
+                || course.tags.contains { $0.localizedCaseInsensitiveContains(searchText) }
+                || course.lectures.contains { $0.title.localizedCaseInsensitiveContains(searchText) }
         }
     }
 
     public var body: some View {
         NavigationSplitView {
-            // Sidebar: Project List
+            sidebar
+                .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 360)
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            activeSheet = .newCourse
+                        } label: {
+                            Label("New Course", systemImage: "plus")
+                        }
+                        .help("New Course (⌘N)")
+                    }
+                }
+        } detail: {
             VStack(spacing: 0) {
-                List(selection: $storage.selectedProject) {
-                    Section("Lecture Projects") {
-                        ForEach(filteredProjects) { project in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(project.title)
-                                    .font(.headline)
-                                    .lineLimit(1)
+                JobsPanelView()
 
-                                HStack {
-                                    Text(project.formattedDate)
-                                    Spacer()
-                                    if project.transcripts.count > 0 {
-                                        Label("\(project.transcripts.count)", systemImage: "doc.text")
-                                    }
-                                    if project.files.count > 0 {
-                                        Label("\(project.files.count)", systemImage: "paperclip")
-                                    }
-                                }
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                            }
-                            .padding(.vertical, 4)
-                            .tag(project)
-                            .contextMenu {
-                                Button("Reveal in Finder") {
-                                    storage.revealInFinder(url: project.folderURL)
-                                }
-                                Divider()
-                                Button("Delete Project", role: .destructive) {
-                                    storage.deleteProject(project)
-                                }
-                            }
-                        }
-                    }
+                if let course = storage.selectedCourse {
+                    CourseDetailView(
+                        course: course,
+                        onSelectAudio: { url, lecture in
+                            enqueueAudio(url, courseID: course.id, lectureNumber: lecture)
+                        },
+                        onAskAI: { activeSheet = .askAI(courseID: course.id) }
+                    )
+                    .id(course.id)
+                } else {
+                    emptyState
                 }
-                .searchable(text: $searchText, prompt: "Search lectures...")
-                .listStyle(.sidebar)
-
-                Divider()
-
-                // Sidebar Bottom Bar
-                HStack {
-                    Button {
-                        isShowingSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                    }
-                    .buttonStyle(.plain)
-                    .help("Settings & Models")
-
-                    Spacer()
-
-                    VStack(alignment: .trailing, spacing: 2) {
-                        HStack(spacing: 4) {
-                            Image(systemName: settings.isUsingiCloud ? "icloud.fill" : "folder.fill")
-                                .foregroundColor(settings.isUsingiCloud ? .blue : .secondary)
-                                .font(.caption2)
-                            Text(settings.isUsingiCloud ? "iCloud Drive" : "Local")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                .padding(10)
-                .background(Color(NSColor.controlBackgroundColor))
             }
-            .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 360)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        newProjectTitle = "Lecture \(storage.projects.count + 1)"
-                        isShowingNewProjectAlert = true
+                        activeSheet = .askAI(courseID: nil)
                     } label: {
-                        Label("New Lecture", systemImage: "plus")
+                        Label("Ask an AI", systemImage: "sparkles")
+                    }
+                    .help("How to use Claude, ChatGPT/Codex or Gemini with your study library")
+                }
+            }
+        }
+        .sheet(item: $activeSheet, onDismiss: showNextQueuedAudio) { sheet in
+            switch sheet {
+            case .newCourse:
+                CourseEditorSheet { activeSheet = nil }
+            case .settings:
+                SettingsView { activeSheet = nil }
+            case .askAI(let courseID):
+                AskAIView(initialCourseID: courseID) { activeSheet = nil }
+            case .migration:
+                MigrationSheet { activeSheet = nil }
+            case .trimmer(let pending):
+                if let course = storage.course(id: pending.courseID) {
+                    AudioTrimmerSheet(audioURL: pending.url, course: course, initialLecture: pending.lectureNumber) {
+                        activeSheet = nil
                     }
                 }
             }
-        } detail: {
-            VStack(spacing: 0) {
-                // Persistent Background Transcription Banner
-                if let job = transcriptionService.activeJob {
-                    ActiveJobBanner(job: job)
-                } else if let completed = transcriptionService.recentCompletedJob {
-                    CompletedJobBanner(job: completed) {
-                        transcriptionService.recentCompletedJob = nil
-                    }
-                }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .createNewCourse)) { _ in
+            activeSheet = .newCourse
+        }
+        .onAppear {
+            if !storage.legacyFolders.isEmpty {
+                activeSheet = .migration
+            }
+        }
+    }
 
-                // Detail Area
-                if let selected = storage.selectedProject {
-                    ProjectDetailView(project: selected) { audioURL in
-                        self.pendingAudioURL = audioURL
-                    }
-                } else {
-                    VStack(spacing: 16) {
-                        Image(systemName: "graduationcap")
-                            .font(.system(size: 56))
-                            .foregroundColor(.secondary.opacity(0.5))
+    // MARK: - Sidebar
 
-                        Text("No Lecture Selected")
-                            .font(.title2.bold())
-
-                        Text("Select a lecture project from the sidebar or create a new one.")
-                            .font(.callout)
+    private var sidebar: some View {
+        VStack(spacing: 0) {
+            if !storage.allTags.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Filter by tag")
+                            .font(.caption.bold())
                             .foregroundColor(.secondary)
-
-                        Button("Create New Lecture") {
-                            newProjectTitle = "Lecture \(storage.projects.count + 1)"
-                            isShowingNewProjectAlert = true
+                        Spacer()
+                        if !selectedTags.isEmpty {
+                            Button("Clear") { selectedTags = [] }
+                                .buttonStyle(.borderless)
+                                .font(.caption)
                         }
-                        .buttonStyle(.borderedProminent)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    WrappingHStack(items: storage.allTags) { tag in
+                        Button {
+                            if selectedTags.contains(tag) {
+                                selectedTags.remove(tag)
+                            } else {
+                                selectedTags.insert(tag)
+                            }
+                        } label: {
+                            TagChip(tag: tag, isSelected: selectedTags.contains(tag))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                Divider()
+            }
+
+            List(selection: $storage.selectedCourseID) {
+                Section(selectedTags.isEmpty ? "Courses" : "Courses (\(filteredCourses.count) of \(storage.courses.count))") {
+                    ForEach(filteredCourses) { course in
+                        CourseRow(course: course)
+                            .tag(course.id)
+                            .contextMenu {
+                                Button("Reveal in Finder") {
+                                    storage.revealInFinder(url: course.folderURL)
+                                }
+                                Divider()
+                                Button("Move Course to Trash", role: .destructive) {
+                                    storage.deleteCourse(id: course.id)
+                                }
+                            }
+                    }
                 }
             }
-        }
-        .sheet(item: $pendingAudioURL) { audioURL in
-            if let selectedProject = storage.selectedProject {
-                AudioTrimmerSheet(audioURL: audioURL, project: selectedProject) {
-                    self.pendingAudioURL = nil
-                }
-            }
-        }
-        .sheet(isPresented: $isShowingSettings) {
-            SettingsView {
-                isShowingSettings = false
-            }
-        }
-        .alert("New Lecture Project", isPresented: $isShowingNewProjectAlert) {
-            TextField("Lecture Name (e.g. CS101 - Lecture 01)", text: $newProjectTitle)
-            Button("Create") {
-                if let created = storage.createProject(named: newProjectTitle) {
-                    storage.selectedProject = created
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Enter a title for the new lecture. A corresponding folder will be created in your configured storage path.")
-        }
-    }
-}
+            .searchable(text: $searchText, placement: .sidebar, prompt: "Search courses, tags, lectures")
+            .listStyle(.sidebar)
 
-struct ActiveJobBanner: View {
-    let job: TranscriptionJob
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "waveform.circle.fill")
-                .font(.title2)
-                .foregroundColor(.accentColor)
-
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 8) {
-                    Text("Transcribing:")
-                        .font(.subheadline.bold())
-                    Text(job.originalFileName)
-                        .font(.subheadline)
-                        .lineLimit(1)
-                    Text("• \(job.projectTitle)")
+            if !storage.legacyFolders.isEmpty {
+                Button {
+                    activeSheet = .migration
+                } label: {
+                    Label("\(storage.legacyFolders.count) older lecture folder\(storage.legacyFolders.count == 1 ? "" : "s") to organise", systemImage: "tray.and.arrow.down")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-
-                HStack(spacing: 8) {
-                    ProgressView(value: job.progressFraction)
-                        .progressViewStyle(.linear)
-                        .frame(maxWidth: 240)
-                    Text(job.statusDescription)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
+                .buttonStyle(.borderless)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.orange.opacity(0.12))
             }
 
-            Spacer()
+            Divider()
 
-            Label("Background Task Active", systemImage: "arrow.triangle.2.circlepath")
+            HStack {
+                Button {
+                    activeSheet = .settings
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .buttonStyle(.plain)
+                .help("Settings & Models")
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    Image(systemName: settings.isUsingiCloud ? "icloud.fill" : "folder.fill")
+                        .foregroundColor(settings.isUsingiCloud ? .blue : .secondary)
+                    Text(settings.isUsingiCloud ? "iCloud Drive" : "Local")
+                        .foregroundColor(.secondary)
+                }
                 .font(.caption2)
-                .foregroundColor(.secondary)
+            }
+            .padding(10)
+            .background(Color(NSColor.controlBackgroundColor))
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(Color.accentColor.opacity(0.12))
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Color.accentColor.opacity(0.25)),
-            alignment: .bottom
-        )
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "books.vertical")
+                .font(.system(size: 56))
+                .foregroundColor(.secondary.opacity(0.5))
+
+            Text(storage.courses.isEmpty ? "Create Your First Course" : "No Course Selected")
+                .font(.title2.bold())
+
+            Text("Each course holds numbered lectures with their transcripts, plus shared materials like slides and readings. The folder is laid out so AI assistants can read it.")
+                .font(.callout)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 420)
+
+            Button("New Course") {
+                activeSheet = .newCourse
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Audio Queue
+
+    private func enqueueAudio(_ url: URL, courseID: String, lectureNumber: Int?) {
+        audioQueue.append(PendingAudio(url: url, courseID: courseID, lectureNumber: lectureNumber))
+        if activeSheet == nil {
+            showNextQueuedAudio()
+        }
+    }
+
+    private func showNextQueuedAudio() {
+        guard activeSheet == nil, !audioQueue.isEmpty else { return }
+        activeSheet = .trimmer(audioQueue.removeFirst())
     }
 }
 
-struct CompletedJobBanner: View {
-    let job: TranscriptionJob
-    let onDismiss: () -> Void
+struct CourseRow: View {
+    let course: Course
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.green)
-                .font(.title3)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                if !course.metadata.code.isEmpty {
+                    Text(course.metadata.code)
+                        .font(.system(.caption, design: .monospaced).bold())
+                        .foregroundColor(.accentColor)
+                }
+                Text(course.name)
+                    .font(.headline)
+                    .lineLimit(1)
+            }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Transcription Finished!")
-                    .font(.subheadline.bold())
-                Text("Saved transcript for \(job.projectTitle). Temporary audio was removed.")
+            HStack(spacing: 8) {
+                Label("\(course.lectures.count)", systemImage: "list.number")
+                if !course.materials.isEmpty {
+                    Label("\(course.materials.count)", systemImage: "paperclip")
+                }
+                if let latest = course.lectures.last {
+                    Text(DateFormats.isoDay.string(from: latest.date))
+                }
+                Spacer()
+            }
+            .font(.caption2)
+            .foregroundColor(.secondary)
+
+            if !course.tags.isEmpty {
+                Text(course.tags.joined(separator: " · "))
                     .font(.caption2)
                     .foregroundColor(.secondary)
+                    .lineLimit(1)
             }
-
-            Spacer()
-
-            Button("Dismiss") {
-                onDismiss()
-            }
-            .buttonStyle(.plain)
-            .font(.caption)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Color.secondary.opacity(0.15))
-            .clipShape(RoundedRectangle(cornerRadius: 4))
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(Color.green.opacity(0.12))
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Color.green.opacity(0.25)),
-            alignment: .bottom
-        )
+        .padding(.vertical, 4)
     }
 }
 

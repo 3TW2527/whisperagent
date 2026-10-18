@@ -37,7 +37,7 @@ public struct SettingsView: View {
                         Text("Root Storage Location")
                             .font(.headline)
 
-                        Text("All lecture projects are created as subfolders inside this directory. You can choose a local folder or an iCloud Drive directory to automatically sync across devices.")
+                        Text("Each course is a subfolder of this directory, next to the generated INDEX.md and AGENTS.md files that AI assistants read. Choose a local folder, or an iCloud Drive folder to sync across devices.")
                             .font(.caption)
                             .foregroundColor(.secondary)
 
@@ -67,7 +67,7 @@ public struct SettingsView: View {
 
                             Button("Use iCloud Default") {
                                 settings.setCustomRootDirectory(AppSettings.defaultRootDirectory())
-                                ProjectStorageService.shared.reloadProjects()
+                                CourseStorageService.shared.reload()
                             }
                         }
                         .padding(12)
@@ -79,10 +79,10 @@ public struct SettingsView: View {
 
                     // File Ingestion Section
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Lecture File Ingestion (Copy vs Move)")
+                        Text("Adding Materials (Copy vs Move)")
                             .font(.headline)
 
-                        Text("Choose whether files dragged into a lecture project should be copied or moved from their original location.")
+                        Text("Choose whether files dragged into a course are copied or moved from their original location.")
                             .font(.caption)
                             .foregroundColor(.secondary)
 
@@ -134,26 +134,47 @@ public struct SettingsView: View {
 
                     Divider()
 
-                    // Transcript Output Format Section
+                    // Transcript Output Section
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Transcript Output Format")
+                        Text("Transcript Output")
                             .font(.headline)
 
-                        Text("Choose the format used when saving new transcription results. Plain text contains only the transcribed spoken text without timestamps or markdown headers.")
+                        Text("Every new transcription is saved in each format you select. Timing data is kept as well, so you can export an existing transcript to another format later from its menu.")
                             .font(.caption)
                             .foregroundColor(.secondary)
 
-                        Picker("Transcript Format:", selection: $settings.transcriptFormat) {
-                            ForEach(TranscriptFormat.allCases) { format in
-                                Text(format.rawValue).tag(format)
+                        ForEach(TranscriptFormat.allCases) { format in
+                            Toggle(isOn: Binding(
+                                get: { settings.transcriptFormats.contains(format) },
+                                set: { isOn in
+                                    if isOn {
+                                        settings.transcriptFormats.insert(format)
+                                    } else {
+                                        settings.transcriptFormats.remove(format)
+                                    }
+                                }
+                            )) {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(format.displayName)
+                                    Text(format.description)
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .toggleStyle(.checkbox)
+                            .disabled(settings.transcriptFormats == [format])
+                        }
+
+                        Stepper(value: $settings.maxConcurrentJobs, in: AppSettings.concurrentJobsRange) {
+                            HStack {
+                                Text("Parallel transcriptions:")
+                                Text("\(settings.maxConcurrentJobs)")
+                                    .font(.system(.body, design: .monospaced).bold())
                             }
                         }
-                        .pickerStyle(.radioGroup)
-
-                        Text(settings.transcriptFormat.description)
+                        Text("How many recordings can be transcribed at the same time. Each one loads its own copy of the model, so large models with several jobs need a lot of memory. Extra jobs wait in a queue.")
                             .font(.caption2)
                             .foregroundColor(.secondary)
-                            .padding(.leading, 4)
                     }
 
                     Divider()
@@ -197,7 +218,7 @@ public struct SettingsView: View {
 
     private func chooseStorageFolder() {
         let panel = NSOpenPanel()
-        panel.title = "Select Lectures Root Directory"
+        panel.title = "Select Study Library Folder"
         panel.prompt = "Select Folder"
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
@@ -208,7 +229,7 @@ public struct SettingsView: View {
         panel.begin { response in
             if response == .OK, let selectedURL = panel.url {
                 settings.setCustomRootDirectory(selectedURL)
-                ProjectStorageService.shared.reloadProjects()
+                CourseStorageService.shared.reload()
             }
         }
     }

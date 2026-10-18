@@ -12,10 +12,15 @@ struct WhisperLecturesApp: App {
         .commands {
             SidebarCommands()
             CommandGroup(after: .newItem) {
-                Button("New Lecture Project...") {
-                    NotificationCenter.default.post(name: .createNewLectureProject, object: nil)
+                Button("New Course...") {
+                    NotificationCenter.default.post(name: .createNewCourse, object: nil)
                 }
                 .keyboardShortcut("n", modifiers: [.command])
+
+                Button("New Lecture...") {
+                    NotificationCenter.default.post(name: .createNewLecture, object: nil)
+                }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
 
                 Button("Import Audio Recording...") {
                     VoiceMemosService.shared.promptForAudioFile { url in
@@ -31,6 +36,7 @@ struct WhisperLecturesApp: App {
 }
 
 extension Notification.Name {
-    static let createNewLectureProject = Notification.Name("createNewLectureProject")
+    static let createNewCourse = Notification.Name("createNewCourse")
+    static let createNewLecture = Notification.Name("createNewLecture")
     static let importAudioRecording = Notification.Name("importAudioRecording")
 }

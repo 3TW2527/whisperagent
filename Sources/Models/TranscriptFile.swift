@@ -1,6 +1,8 @@
 import Foundation
 
 public struct TranscriptFile: Identifiable, Hashable, Sendable {
+    public static let supportedExtensions: Set<String> = ["md", "txt", "srt", "vtt"]
+
     public var id: String { url.path }
     public let name: String
     public let url: URL
@@ -9,11 +11,15 @@ public struct TranscriptFile: Identifiable, Hashable, Sendable {
 
     public init(url: URL) {
         self.url = url
-        self.name = url.deletingPathExtension().lastPathComponent
-        
+        self.name = url.lastPathComponent
+
         let values = try? url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
         self.fileSize = Int64(values?.fileSize ?? 0)
         self.modifiedAt = values?.contentModificationDate ?? Date()
+    }
+
+    public var baseName: String {
+        url.deletingPathExtension().lastPathComponent
     }
 
     public var fileExtension: String {
