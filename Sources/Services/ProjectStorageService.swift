@@ -66,7 +66,8 @@ public class ProjectStorageService: ObservableObject {
 
         for fileURL in contents {
             let ext = fileURL.pathExtension.lowercased()
-            if ext == "md" {
+            let isTranscript = ext == "md" || (ext == "txt" && fileURL.deletingPathExtension().lastPathComponent.localizedCaseInsensitiveContains("transcript"))
+            if isTranscript {
                 transcripts.append(TranscriptFile(url: fileURL))
             } else {
                 files.append(LectureFile(url: fileURL))
@@ -134,8 +135,9 @@ public class ProjectStorageService: ObservableObject {
     public func ingestFile(
         from sourceURL: URL,
         into project: LectureProject,
-        action: FileIngestionAction = AppSettings.shared.fileIngestionAction
+        action: FileIngestionAction? = nil
     ) throws -> LectureFile {
+        let resolvedAction = action ?? AppSettings.shared.fileIngestionAction
         let destinationURL = project.folderURL.appendingPathComponent(sourceURL.lastPathComponent)
 
         var finalDestination = destinationURL
@@ -149,7 +151,7 @@ public class ProjectStorageService: ObservableObject {
             counter += 1
         }
 
-        switch action {
+        switch resolvedAction {
         case .copy:
             try fileManager.copyItem(at: sourceURL, to: finalDestination)
         case .move:
@@ -164,9 +166,16 @@ public class ProjectStorageService: ObservableObject {
         try ingestFile(from: sourceURL, into: project, action: .copy)
     }
 
-    public func saveTranscript(markdown: String, baseFileName: String, project: LectureProject) throws -> URL {
+    public func saveTranscript(
+        content: String,
+        baseFileName: String,
+        project: LectureProject,
+        format: TranscriptFormat? = nil
+    ) throws -> URL {
+        let resolvedFormat = format ?? AppSettings.shared.transcriptFormat
         let cleanName = sanitizeFileName(baseFileName)
-        let fileName = cleanName.hasSuffix(".md") ? cleanName : "\(cleanName).md"
+        let ext = resolvedFormat.fileExtension
+        let fileName = cleanName.hasSuffix(".\(ext)") ? cleanName : "\(cleanName).\(ext)"
         let destURL = project.folderURL.appendingPathComponent(fileName)
 
         var finalDestination = destURL
@@ -174,13 +183,17 @@ public class ProjectStorageService: ObservableObject {
         let nameNoExt = (fileName as NSString).deletingPathExtension
 
         while fileManager.fileExists(atPath: finalDestination.path) {
-            finalDestination = project.folderURL.appendingPathComponent("\(nameNoExt) (\(counter)).md")
+            finalDestination = project.folderURL.appendingPathComponent("\(nameNoExt) (\(counter)).\(ext)")
             counter += 1
         }
 
-        try markdown.write(to: finalDestination, atomically: true, encoding: .utf8)
+        try content.write(to: finalDestination, atomically: true, encoding: .utf8)
         reloadProjects()
         return finalDestination
+    }
+
+    public func saveTranscript(markdown: String, baseFileName: String, project: LectureProject) throws -> URL {
+        try saveTranscript(content: markdown, baseFileName: baseFileName, project: project, format: .markdown)
     }
 
     public func revealInFinder(url: URL) {

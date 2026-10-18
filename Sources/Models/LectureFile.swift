@@ -3,20 +3,55 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 public struct LectureFile: Identifiable, Hashable, Sendable {
-    public let id: UUID
+    public var id: String { url.path }
     public let name: String
     public let url: URL
     public let fileSize: Int64
     public let modifiedAt: Date
 
     public init(url: URL) {
-        self.id = UUID()
         self.url = url
         self.name = url.lastPathComponent
         
         let values = try? url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
         self.fileSize = Int64(values?.fileSize ?? 0)
         self.modifiedAt = values?.contentModificationDate ?? Date()
+    }
+
+    public var formattedModifiedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: modifiedAt)
+    }
+
+    public var kindDescription: String {
+        switch fileExtension {
+        case "pdf":
+            return "PDF Document"
+        case "ppt", "pptx":
+            return "PowerPoint Presentation"
+        case "key":
+            return "Keynote Presentation"
+        case "doc", "docx":
+            return "Word Document"
+        case "pages":
+            return "Pages Document"
+        case "txt":
+            return "Plain Text Document"
+        case "rtf":
+            return "Rich Text Document"
+        case "png", "jpg", "jpeg", "heic", "webp":
+            return "Image"
+        case "zip", "tar", "gz":
+            return "Compressed Archive"
+        case "mp3", "m4a", "wav", "aac":
+            return "Audio Recording"
+        case "mp4", "mov":
+            return "Video"
+        default:
+            return fileExtension.isEmpty ? "File" : "\(fileExtension.uppercased()) Document"
+        }
     }
 
     public var formattedSize: String {

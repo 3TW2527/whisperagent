@@ -15,6 +15,29 @@ public enum FileIngestionAction: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+public enum TranscriptFormat: String, CaseIterable, Identifiable, Sendable {
+    case markdown = "Markdown (.md)"
+    case plainText = "Plain Text (.txt)"
+
+    public var id: String { rawValue }
+
+    public var fileExtension: String {
+        switch self {
+        case .markdown: return "md"
+        case .plainText: return "txt"
+        }
+    }
+
+    public var description: String {
+        switch self {
+        case .markdown:
+            return "Rich Markdown formatted with timestamps and metadata headers"
+        case .plainText:
+            return "Plain text transcript only (no timestamps or formatting)"
+        }
+    }
+}
+
 @MainActor
 public class AppSettings: ObservableObject {
     public static let shared = AppSettings()
@@ -24,6 +47,7 @@ public class AppSettings: ObservableObject {
     private let selectedModelKey = "WhisperLectures_SelectedModel"
     private let silenceThresholdKey = "WhisperLectures_SilenceThreshold"
     private let fileIngestionActionKey = "WhisperLectures_FileIngestionAction"
+    private let transcriptFormatKey = "WhisperLectures_TranscriptFormat"
 
     @Published public var rootFolderURL: URL {
         didSet {
@@ -49,10 +73,20 @@ public class AppSettings: ObservableObject {
         }
     }
 
+    @Published public var transcriptFormat: TranscriptFormat {
+        didSet {
+            UserDefaults.standard.set(transcriptFormat.rawValue, forKey: transcriptFormatKey)
+        }
+    }
+
     private init() {
         // Load Ingestion Action
         let savedActionStr = UserDefaults.standard.string(forKey: fileIngestionActionKey) ?? "Copy"
         self.fileIngestionAction = FileIngestionAction(rawValue: savedActionStr) ?? .copy
+
+        // Load Transcript Format
+        let savedFormatStr = UserDefaults.standard.string(forKey: transcriptFormatKey) ?? TranscriptFormat.markdown.rawValue
+        self.transcriptFormat = TranscriptFormat(rawValue: savedFormatStr) ?? .markdown
 
         // Load Model
         let savedModel = UserDefaults.standard.string(forKey: selectedModelKey) ?? "openai_whisper-base"

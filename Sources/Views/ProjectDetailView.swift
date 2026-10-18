@@ -11,7 +11,7 @@ public struct ProjectDetailView: View {
     @State private var renameTitle = ""
 
     public enum DetailTab: String, CaseIterable, Identifiable {
-        case transcripts = "Transcripts (.md)"
+        case transcripts = "Transcripts"
         case files = "Lecture Files & Slides"
 
         public var id: String { self.rawValue }

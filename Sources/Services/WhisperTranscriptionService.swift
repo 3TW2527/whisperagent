@@ -188,7 +188,7 @@ public class WhisperTranscriptionService: ObservableObject {
                             }
                         }
                     )
-                    await MainActor.run {
+                    _ = await MainActor.run {
                         self.downloadedModels.insert(modelVariant)
                     }
                 }
@@ -220,19 +220,27 @@ public class WhisperTranscriptionService: ObservableObject {
                     }
                 )
 
-                // 4. Save Markdown
-                let markdown = formatResultsToMarkdown(
-                    results: results,
-                    lectureTitle: project.title,
-                    originalRecordingName: sourceURL.lastPathComponent,
-                    modelName: modelVariant
-                )
+                // 4. Save Transcript (Markdown or Plain Text based on AppSettings)
+                let format = AppSettings.shared.transcriptFormat
+                let transcriptContent: String
+                switch format {
+                case .markdown:
+                    transcriptContent = self.formatResultsToMarkdown(
+                        results: results,
+                        lectureTitle: project.title,
+                        originalRecordingName: sourceURL.lastPathComponent,
+                        modelName: modelVariant
+                    )
+                case .plainText:
+                    transcriptContent = self.formatResultsToPlainText(results: results)
+                }
 
                 let baseName = sourceURL.deletingPathExtension().lastPathComponent + "-transcript"
                 let savedURL = try ProjectStorageService.shared.saveTranscript(
-                    markdown: markdown,
+                    content: transcriptContent,
                     baseFileName: baseName,
-                    project: project
+                    project: project,
+                    format: format
                 )
 
                 // 5. Cleanup temporary trimmed audio
@@ -302,17 +310,33 @@ public class WhisperTranscriptionService: ObservableObject {
             }
         )
 
-        transcriptionStatusText = "Formatting Markdown transcript..."
+        let format = AppSettings.shared.transcriptFormat
+        transcriptionStatusText = format == .plainText ? "Formatting plain text transcript..." : "Formatting Markdown transcript..."
 
-        // Generate formatted markdown
-        let markdown = formatResultsToMarkdown(
-            results: results,
-            lectureTitle: lectureTitle,
-            originalRecordingName: originalRecordingName,
-            modelName: modelVariant
-        )
+        if format == .plainText {
+            return formatResultsToPlainText(results: results)
+        } else {
+            return formatResultsToMarkdown(
+                results: results,
+                lectureTitle: lectureTitle,
+                originalRecordingName: originalRecordingName,
+                modelName: modelVariant
+            )
+        }
+    }
 
-        return markdown
+    public func formatResultsToPlainText(results: [TranscriptionResult]) -> String {
+        var fullText = ""
+        for result in results {
+            let trimmed = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                if !fullText.isEmpty {
+                    fullText += "\n\n"
+                }
+                fullText += trimmed
+            }
+        }
+        return fullText
     }
 
     private func formatResultsToMarkdown(

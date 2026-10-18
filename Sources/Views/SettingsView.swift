@@ -134,6 +134,30 @@ public struct SettingsView: View {
 
                     Divider()
 
+                    // Transcript Output Format Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Transcript Output Format")
+                            .font(.headline)
+
+                        Text("Choose the format used when saving new transcription results. Plain text contains only the transcribed spoken text without timestamps or markdown headers.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Picker("Transcript Format:", selection: $settings.transcriptFormat) {
+                            ForEach(TranscriptFormat.allCases) { format in
+                                Text(format.rawValue).tag(format)
+                            }
+                        }
+                        .pickerStyle(.radioGroup)
+
+                        Text(settings.transcriptFormat.description)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .padding(.leading, 4)
+                    }
+
+                    Divider()
+
                     // Silence Detection Section
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Silence Detection Sensitivity")

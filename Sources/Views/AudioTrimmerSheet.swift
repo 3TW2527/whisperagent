@@ -198,7 +198,7 @@ public struct AudioTrimmerSheet: View {
                         HStack(spacing: 8) {
                             Image(systemName: "info.circle")
                                 .foregroundColor(.blue)
-                            Text("The audio file will be trimmed and transcribed to Markdown (.md). The original audio will be discarded after transcription to save iCloud and disk space.")
+                            Text("The audio file will be trimmed and transcribed to \(appSettings.transcriptFormat == .plainText ? "Plain Text (.txt)" : "Markdown (.md)"). The original audio will be discarded after transcription to save iCloud and disk space.")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -250,7 +250,7 @@ public struct AudioTrimmerSheet: View {
                     Button {
                         startTranscription()
                     } label: {
-                        Label("Transcribe & Generate Markdown", systemImage: "waveform.badge.magnifyingglass")
+                        Label("Transcribe Audio (\(appSettings.transcriptFormat == .plainText ? "Plain Text" : "Markdown"))", systemImage: "waveform.badge.magnifyingglass")
                             .padding(.horizontal, 8)
                     }
                     .buttonStyle(.borderedProminent)

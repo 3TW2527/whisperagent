@@ -16,6 +16,7 @@ public struct QuickLookPreviewView: NSViewRepresentable {
 
     public func updateNSView(_ nsView: QLPreviewView, context: Context) {
         nsView.previewItem = fileURL as QLPreviewItem
+        nsView.refreshPreviewItem()
     }
 }
 
@@ -28,7 +29,26 @@ public struct QuickLookModal: View {
             HStack {
                 Text(fileURL.lastPathComponent)
                     .font(.headline)
+
                 Spacer()
+
+                Button {
+                    NSWorkspace.shared.open(fileURL)
+                } label: {
+                    Label("Open", systemImage: "arrow.up.forward.app")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Button {
+                    NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+                } label: {
+                    Image(systemName: "folder")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Reveal in Finder")
+
                 Button {
                     onDismiss()
                 } label: {
@@ -37,6 +57,7 @@ public struct QuickLookModal: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
             }
             .padding()
             .background(Color(NSColor.windowBackgroundColor))
@@ -44,7 +65,16 @@ public struct QuickLookModal: View {
             Divider()
 
             QuickLookPreviewView(fileURL: fileURL)
-                .frame(minWidth: 600, minHeight: 450)
+                .frame(minWidth: 640, minHeight: 480)
         }
+        // Allow pressing Space to toggle/close Quick Look, just like Finder
+        .background(
+            Button("") {
+                onDismiss()
+            }
+            .keyboardShortcut(.space, modifiers: [])
+            .opacity(0)
+            .frame(width: 0, height: 0)
+        )
     }
 }
