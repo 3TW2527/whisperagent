@@ -21,6 +21,9 @@ Icon
 Thumbs.db
 *~.nib
 
+# VS Code
+.vscode/
+
 # Temporary / Scratch
 scratch/
 /tmp/

@@ -54,7 +54,7 @@ public struct MainView: View {
     public var body: some View {
         NavigationSplitView {
             sidebar
-                .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 360)
+                .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 320)
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         Button {

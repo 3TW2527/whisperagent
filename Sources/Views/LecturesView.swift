@@ -72,7 +72,7 @@ public struct LecturesView: View {
                     .buttonStyle(.borderless)
                     .padding(8)
                 }
-                .frame(minWidth: 220, idealWidth: 260, maxWidth: 320)
+                .frame(minWidth: 200, idealWidth: 240, maxWidth: 300)
 
                 Group {
                     switch selection {
@@ -90,7 +90,7 @@ public struct LecturesView: View {
                         placeholder
                     }
                 }
-                .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
+                .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
             }
             .onAppear(perform: validateSelection)
             .onChange(of: course.id) { validateSelection() }
@@ -278,15 +278,15 @@ struct RecordingsBrowser: View {
         } else {
             VStack(spacing: 0) {
                 if groups.count > 1 {
-                    Picker("Recording", selection: Binding(get: { activeGroup?.baseName ?? "" }, set: { selectedBaseName = $0 })) {
+                    Picker("Recording (\(groups.count))", selection: Binding(get: { activeGroup?.baseName ?? "" }, set: { selectedBaseName = $0 })) {
                         ForEach(groups) { group in
                             Text(group.baseName).tag(group.baseName)
                         }
                     }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
+                    .pickerStyle(.menu)
                     .padding(.horizontal)
-                    .padding(.top, 8)
+                    .padding(.vertical, 8)
+                    Divider()
                 }
                 if let group = activeGroup {
                     RecordingDetailView(course: course, group: group)
@@ -333,8 +333,7 @@ struct RecordingDetailView: View {
                             Text(file.fileExtension.uppercased()).tag(file.id)
                         }
                     }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
+                    .pickerStyle(.menu)
                     .fixedSize()
                 }
 

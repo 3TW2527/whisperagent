@@ -66,7 +66,7 @@ public struct AskAIView: View {
                     .padding(20)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(minWidth: 520)
+                .frame(minWidth: 400)
             }
             Divider()
             HStack {
@@ -79,7 +79,7 @@ public struct AskAIView: View {
             }
             .padding(12)
         }
-        .frame(width: 900, height: 660)
+        .frame(minWidth: 780, idealWidth: 900, maxWidth: 1000, minHeight: 480, idealHeight: 660, maxHeight: 800)
     }
 
     // MARK: - Header

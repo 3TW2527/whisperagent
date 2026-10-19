@@ -65,7 +65,7 @@ public struct QuickLookModal: View {
             Divider()
 
             QuickLookPreviewView(fileURL: fileURL)
-                .frame(minWidth: 640, minHeight: 480)
+                .frame(minWidth: 520, idealWidth: 720, minHeight: 360, idealHeight: 520)
         }
         // Allow pressing Space to toggle/close Quick Look, just like Finder
         .background(

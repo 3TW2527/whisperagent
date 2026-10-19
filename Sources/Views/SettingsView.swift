@@ -213,7 +213,7 @@ public struct SettingsView: View {
             .padding()
             .background(Color(NSColor.windowBackgroundColor))
         }
-        .frame(width: 680, height: 600)
+        .frame(minWidth: 600, idealWidth: 680, maxWidth: 800, minHeight: 440, idealHeight: 600, maxHeight: 760)
     }
 
     private func chooseStorageFolder() {

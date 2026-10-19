@@ -313,7 +313,7 @@ public struct AudioTrimmerSheet: View {
             .padding()
             .background(Color(NSColor.windowBackgroundColor))
         }
-        .frame(minWidth: 720, minHeight: 520)
+        .frame(minWidth: 640, idealWidth: 720, minHeight: 460, idealHeight: 540)
         .onAppear {
             setupAudio()
         }
