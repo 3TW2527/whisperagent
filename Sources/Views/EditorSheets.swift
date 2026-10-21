@@ -9,6 +9,8 @@ public struct CourseEditorSheet: View {
     @State private var name = ""
     @State private var code = ""
     @State private var tagsText = ""
+    /// The course's own folder when it is kept outside the library. Nil means the library folder.
+    @State private var customLocation: URL?
     @State private var errorMessage: String?
 
     public init(course: Course? = nil, onDismiss: @escaping () -> Void) {
@@ -31,6 +33,8 @@ public struct CourseEditorSheet: View {
                 TextField("Tags", text: $tagsText, prompt: Text("Comma-separated, e.g. semester-1, maths"))
             }
             .formStyle(.grouped)
+
+            locationSection
 
             if !parsedTags.isEmpty {
                 HStack(spacing: 6) {
@@ -83,19 +87,74 @@ public struct CourseEditorSheet: View {
                 name = course.metadata.name
                 code = course.metadata.code
                 tagsText = course.tags.joined(separator: ", ")
+                customLocation = course.isExternal ? course.folderURL : nil
             }
+        }
+    }
+
+    private var locationSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Location")
+                .font(.caption.bold())
+                .foregroundColor(.secondary)
+            HStack(spacing: 8) {
+                Picker("", selection: Binding(
+                    get: { customLocation == nil },
+                    set: { inLibrary in
+                        if inLibrary { customLocation = nil } else { chooseLocation() }
+                    }
+                )) {
+                    Text("Library folder").tag(true)
+                    Text("Another folder...").tag(false)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 280)
+
+                if customLocation != nil {
+                    Button("Change...") { chooseLocation() }
+                        .controlSize(.small)
+                }
+            }
+            Text(customLocation?.path ?? "\(AppSettings.shared.rootFolderURL.path)/ (a folder named after the course)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            if customLocation != nil {
+                Text(isEditing ? "The course's files are moved into this folder. It must be empty." : "The course's files go directly in this folder. It must be empty.")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    private func chooseLocation() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose the folder for this course"
+        panel.message = "The course's files go directly in the folder you choose, so pick or create an empty one."
+        panel.prompt = "Use This Folder"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.directoryURL = customLocation?.deletingLastPathComponent() ?? AppSettings.shared.rootFolderURL
+        if panel.runModal() == .OK, let url = panel.url {
+            customLocation = url
         }
     }
 
     private func save() {
         if let course {
             do {
-                try storage.updateCourse(id: course.id, name: name, code: code, tags: parsedTags)
+                let newID = try storage.updateCourse(id: course.id, name: name, code: code, tags: parsedTags)
+                try storage.moveCourse(id: newID, to: customLocation)
                 onDismiss()
             } catch {
                 errorMessage = error.localizedDescription
             }
-        } else if storage.createCourse(name: name, code: code, tags: parsedTags) != nil {
+        } else if let customLocation, !CourseStorageService.isUsableCourseFolder(customLocation) {
+            errorMessage = StorageError.destinationNotEmpty.localizedDescription
+        } else if storage.createCourse(name: name, code: code, tags: parsedTags, location: customLocation) != nil {
             onDismiss()
         } else {
             errorMessage = "Could not create the course folder. Check the storage location in Settings."

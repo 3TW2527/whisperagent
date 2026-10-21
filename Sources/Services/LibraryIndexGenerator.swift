@@ -39,7 +39,8 @@ public enum LibraryIndexGenerator {
             for course in courses {
                 let latest = course.lectures.map(\.date).max().map { DateFormats.isoDay.string(from: $0) } ?? "—"
                 let recordings = course.lectures.reduce(0) { $0 + course.recordingGroups(for: $1).count }
-                let folder = course.folderURL.lastPathComponent
+                // Courses stored outside the library can't be linked relatively.
+                let folder = course.isExternal ? course.folderURL.path : course.folderURL.lastPathComponent
                 lines.append("| \(cell(course.name)) | \(cell(course.metadata.code)) | \(cell(course.tags.joined(separator: ", "))) | \(course.lectures.count) | \(recordings) | \(latest) | \(link(folder + "/" + Course.overviewFileName, to: folder + "/" + Course.overviewFileName)) |")
             }
         }
@@ -108,6 +109,17 @@ public enum LibraryIndexGenerator {
         }
         lines.append("")
 
+        if !course.notes.isEmpty {
+            lines.append("## Notes")
+            lines.append("")
+            lines.append("Written by the student in Markdown. `[[Name]]` links point to other notes, lectures or files.")
+            lines.append("")
+            for note in course.notes {
+                lines.append("- \(link(note.name, to: "\(Course.notesFolderName)/\(note.url.lastPathComponent)"))")
+            }
+            lines.append("")
+        }
+
         let unassigned = course.unassignedRecordingGroups
         if !unassigned.isEmpty {
             lines.append("## Other Transcripts")
@@ -142,6 +154,7 @@ public enum LibraryIndexGenerator {
           COURSE.md                    Lecture table (number, title, date, transcripts) and materials list.
           course.json                  The same data in machine-readable form.
           materials/                   Slides, PDFs, readings and notes for the whole course.
+          notes/                       The student's own Markdown notes (LaTeX math, [[wikilinks]]).
           transcripts/
             <Course>_L03_R1.md         Transcript of lecture 3, recording 1 (preferred for reading).
             <Course>_L03_R1.txt        Same transcript, plain text (optional).

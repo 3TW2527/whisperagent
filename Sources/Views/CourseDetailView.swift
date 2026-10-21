@@ -1,84 +1,59 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Detail view for one course: header, audio drop bar, and Lectures / Materials tabs.
+/// Main area for one course: header, audio drop bar, and either the lecture workspace or a document preview,
+/// depending on the sidebar's tab.
 public struct CourseDetailView: View {
     public let course: Course
+    @ObservedObject var nav: CourseNavigation
     /// Called with an audio file and the lecture it should go to (if one is selected).
     public var onSelectAudio: (URL, Int?) -> Void
-    public var onAskAI: () -> Void
 
-    @State private var selectedTab: DetailTab = .lectures
-    @State private var lectureSelection: LectureSelection?
     @State private var isAudioDropTargeted = false
-    @State private var isEditingCourse = false
-    @State private var isAddingLecture = false
 
-    public enum DetailTab: String, CaseIterable, Identifiable {
-        case lectures = "Lectures"
-        case materials = "Materials"
-
-        public var id: String { rawValue }
-    }
-
-    public init(course: Course, onSelectAudio: @escaping (URL, Int?) -> Void, onAskAI: @escaping () -> Void) {
+    init(course: Course, nav: CourseNavigation, onSelectAudio: @escaping (URL, Int?) -> Void) {
         self.course = course
+        self.nav = nav
         self.onSelectAudio = onSelectAudio
-        self.onAskAI = onAskAI
     }
 
-    private var selectedLectureNumber: Int? {
-        if case .lecture(let number) = lectureSelection { return number }
-        return nil
-    }
+    private var selectedLectureNumber: Int? { nav.selectedLectureNumber }
 
     public var body: some View {
         VStack(spacing: 0) {
-            header
-
             audioDropBar
-
-            Picker("", selection: $selectedTab) {
-                Text("Lectures (\(course.lectures.count))").tag(DetailTab.lectures)
-                Text("Materials (\(course.materials.count))").tag(DetailTab.materials)
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.vertical, 8)
 
             Divider()
 
-            switch selectedTab {
+            switch nav.sidebarTab {
             case .lectures:
                 LecturesView(
                     course: course,
-                    selection: $lectureSelection,
-                    onNewLecture: { isAddingLecture = true },
+                    nav: nav,
+                    onNewLecture: { nav.isAddingLecture = true },
                     onTranscribe: { number in
                         promptForAudio(lectureNumber: number)
                     }
                 )
-            case .materials:
-                FileAttachmentsView(course: course) { audioURL in
-                    onSelectAudio(audioURL, selectedLectureNumber)
-                }
+            case .documents:
+                DocumentPane(course: course, nav: nav)
             }
         }
-        .sheet(isPresented: $isEditingCourse) {
-            CourseEditorSheet(course: course) { isEditingCourse = false }
-        }
-        .sheet(isPresented: $isAddingLecture) {
+        .sheet(isPresented: $nav.isAddingLecture) {
             LectureEditorSheet(course: course, onSaved: { created in
                 if let created {
-                    lectureSelection = .lecture(created.number)
-                    selectedTab = .lectures
+                    nav.lectureSelection = .lecture(created.number)
+                    nav.sidebarTab = .lectures
                 }
             }, onDismiss: {
-                isAddingLecture = false
+                nav.isAddingLecture = false
             })
         }
+        .onAppear(perform: validateSelections)
+        .onChange(of: course.lectures) { validateSelections() }
+        .onChange(of: course.materials) { validateSelections() }
         .onReceive(NotificationCenter.default.publisher(for: .createNewLecture)) { _ in
-            isAddingLecture = true
+            nav.isAddingLecture = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .importAudioRecording)) { note in
             if let url = note.object as? URL {
@@ -87,85 +62,37 @@ public struct CourseDetailView: View {
         }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center, spacing: 10) {
-                if !course.metadata.code.isEmpty {
-                    Text(course.metadata.code)
-                        .font(.system(.title3, design: .monospaced).bold())
-                        .foregroundColor(.accentColor)
-                }
-                Text(course.name)
-                    .font(.title2.bold())
-                    .lineLimit(1)
-
-                Button {
-                    isEditingCourse = true
-                } label: {
-                    Image(systemName: "pencil")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Edit course name, code and tags")
-
-                Spacer()
-
-                Button {
-                    isAddingLecture = true
-                } label: {
-                    Label("New Lecture", systemImage: "plus")
-                }
-
-                Button {
-                    onAskAI()
-                } label: {
-                    Label("Ask an AI", systemImage: "sparkles")
-                }
-                .help("How to point Claude, ChatGPT/Codex or Gemini at this course")
-
-                Button {
-                    CourseStorageService.shared.revealInFinder(url: course.folderURL)
-                } label: {
-                    Image(systemName: "folder")
-                }
-                .help("Reveal course folder in Finder")
+    /// Keeps the lecture and document selections pointing at things that exist, defaulting to the latest lecture.
+    private func validateSelections() {
+        switch nav.lectureSelection {
+        case .lecture(let number) where course.lecture(number: number) != nil:
+            break
+        case .unassigned where !course.unassignedRecordingGroups.isEmpty:
+            break
+        default:
+            if let latest = course.lectures.last {
+                nav.lectureSelection = .lecture(latest.number)
+            } else if !course.unassignedRecordingGroups.isEmpty {
+                nav.lectureSelection = .unassigned
+            } else {
+                nav.lectureSelection = nil
             }
-
-            HStack(spacing: 8) {
-                ForEach(course.tags, id: \.self) { tag in
-                    TagChip(tag: tag)
-                }
-                if !course.tags.isEmpty {
-                    Text("•")
-                }
-                Text("\(course.lectures.count) lecture\(course.lectures.count == 1 ? "" : "s")")
-                Text("•")
-                Text("\(course.transcripts.count) transcript file\(course.transcripts.count == 1 ? "" : "s")")
-                Text("•")
-                Text("\(course.materials.count) material\(course.materials.count == 1 ? "" : "s")")
-                Spacer()
-            }
-            .font(.caption)
-            .foregroundColor(.secondary)
         }
-        .padding()
-        .background(Color(NSColor.controlBackgroundColor))
+
+        if nav.documentID == nil || !course.materials.contains(where: { $0.id == nav.documentID }) {
+            nav.documentID = course.materials.first?.id
+        }
     }
 
     private var audioDropBar: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Image(systemName: "waveform")
-                .font(.title3)
                 .foregroundColor(isAudioDropTargeted ? .accentColor : .secondary)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Drop audio recordings here (.m4a, .mp3, ...)")
-                    .font(.subheadline.bold())
-                Text("Drop several at once to transcribe them in parallel. Other files are added to Materials.")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
+            Text("Drop audio here to transcribe it. Other files are added to Documents.")
+                .font(.caption)
+                .foregroundColor(isAudioDropTargeted ? .accentColor : .secondary)
+                .lineLimit(1)
 
             Spacer()
 
@@ -180,15 +107,11 @@ public struct CourseDetailView: View {
             Button("Import Audio...") {
                 promptForAudio(lectureNumber: selectedLectureNumber)
             }
-            .buttonStyle(.bordered)
             .controlSize(.small)
         }
-        .padding(10)
-        .background(isAudioDropTargeted ? Color.accentColor.opacity(0.12) : Color(NSColor.windowBackgroundColor))
-        .overlay(
-            Rectangle()
-                .stroke(isAudioDropTargeted ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: 1)
-        )
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(isAudioDropTargeted ? Color.accentColor.opacity(0.12) : Color(NSColor.controlBackgroundColor))
         .onDrop(of: [.fileURL], isTargeted: $isAudioDropTargeted) { providers in
             handleDroppedFiles(providers)
             return true

@@ -5,24 +5,23 @@ public enum LectureSelection: Hashable {
     case unassigned
 }
 
-/// Lecture list on the left; the selected lecture's recordings and transcript on the right.
+/// The selected lecture's header, then a bar of its transcripts and the course's notes beside the open item.
+/// The lecture list itself lives in the sidebar.
 public struct LecturesView: View {
     public let course: Course
-    @Binding public var selection: LectureSelection?
+    @ObservedObject var nav: CourseNavigation
     public var onNewLecture: () -> Void
     public var onTranscribe: (Int) -> Void
 
-    @ObservedObject private var transcriptionService = WhisperTranscriptionService.shared
-
-    public init(course: Course, selection: Binding<LectureSelection?>, onNewLecture: @escaping () -> Void, onTranscribe: @escaping (Int) -> Void) {
+    init(course: Course, nav: CourseNavigation, onNewLecture: @escaping () -> Void, onTranscribe: @escaping (Int) -> Void) {
         self.course = course
-        self._selection = selection
+        self.nav = nav
         self.onNewLecture = onNewLecture
         self.onTranscribe = onTranscribe
     }
 
     public var body: some View {
-        if course.lectures.isEmpty && course.unassignedRecordingGroups.isEmpty {
+        if course.lectures.isEmpty && course.unassignedRecordingGroups.isEmpty && course.notes.isEmpty {
             VStack(spacing: 16) {
                 Image(systemName: "list.number")
                     .font(.system(size: 48))
@@ -34,90 +33,56 @@ public struct LecturesView: View {
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 380)
-                Button {
-                    onNewLecture()
-                } label: {
-                    Label("New Lecture", systemImage: "plus")
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            HSplitView {
-                VStack(spacing: 0) {
-                    List(selection: $selection) {
-                        ForEach(course.lectures.reversed()) { lecture in
-                            LectureRow(
-                                lecture: lecture,
-                                recordingCount: course.recordingGroups(for: lecture).count,
-                                runningCount: transcriptionService.activeJobs.filter { $0.courseID == course.id && $0.lectureNumber == lecture.number }.count
-                            )
-                            .tag(LectureSelection.lecture(lecture.number))
-                        }
-                        if !course.unassignedRecordingGroups.isEmpty {
-                            Label("Other transcripts (\(course.unassignedRecordingGroups.count))", systemImage: "tray")
-                                .font(.subheadline)
-                                .tag(LectureSelection.unassigned)
-                        }
-                    }
-                    .listStyle(.inset)
-
-                    Divider()
+                HStack {
                     Button {
                         onNewLecture()
                     } label: {
                         Label("New Lecture", systemImage: "plus")
-                            .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderless)
-                    .padding(8)
-                }
-                .frame(minWidth: 200, idealWidth: 240, maxWidth: 300)
+                    .buttonStyle(.borderedProminent)
 
-                Group {
-                    switch selection {
-                    case .lecture(let number):
-                        if let lecture = course.lecture(number: number) {
-                            LectureDetailPane(course: course, lecture: lecture, onTranscribe: { onTranscribe(lecture.number) })
-                                .id("\(course.id)#\(number)")
-                        } else {
-                            placeholder
-                        }
-                    case .unassigned:
-                        RecordingsBrowser(course: course, groups: course.unassignedRecordingGroups)
-                            .id("\(course.id)#unassigned")
-                    case nil:
-                        placeholder
+                    Button {
+                        createNote(title: "")
+                    } label: {
+                        Label("New Note", systemImage: "square.and.pencil")
                     }
                 }
-                .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
             }
-            .onAppear(perform: validateSelection)
-            .onChange(of: course.id) { validateSelection() }
-            .onChange(of: course.lectures) { validateSelection() }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            Group {
+                switch nav.lectureSelection {
+                case .lecture(let number):
+                    if let lecture = course.lecture(number: number) {
+                        LectureDetailPane(course: course, lecture: lecture, onTranscribe: { onTranscribe(lecture.number) }) {
+                            workspace(groups: course.recordingGroups(for: lecture), lecture: lecture)
+                        }
+                        .id("\(course.id)#\(number)")
+                    } else {
+                        workspace(groups: [], lecture: nil)
+                    }
+                case .unassigned:
+                    workspace(groups: course.unassignedRecordingGroups, lecture: nil)
+                        .id("\(course.id)#unassigned")
+                case nil:
+                    workspace(groups: [], lecture: nil)
+                }
+            }
         }
     }
 
-    private var placeholder: some View {
-        Text("Select a lecture")
-            .foregroundColor(.secondary)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    private func workspace(groups: [RecordingGroup], lecture: Lecture?) -> some View {
+        TranscriptWorkspace(
+            course: course,
+            groups: groups,
+            nav: nav,
+            onNewNote: { createNote(title: lecture.map { "Lecture \($0.number) notes" } ?? "") }
+        )
     }
 
-    private func validateSelection() {
-        switch selection {
-        case .lecture(let number) where course.lecture(number: number) != nil:
-            return
-        case .unassigned where !course.unassignedRecordingGroups.isEmpty:
-            return
-        default:
-            if let latest = course.lectures.last {
-                selection = .lecture(latest.number)
-            } else if !course.unassignedRecordingGroups.isEmpty {
-                selection = .unassigned
-            } else {
-                selection = nil
-            }
+    private func createNote(title: String) {
+        if let note = try? CourseStorageService.shared.createNote(courseID: course.id, title: title) {
+            nav.barItem = .note(note.id)
         }
     }
 }
@@ -158,30 +123,23 @@ struct LectureRow: View {
 
 // MARK: - Lecture Detail
 
-struct LectureDetailPane: View {
+struct LectureDetailPane<Content: View>: View {
     let course: Course
     let lecture: Lecture
     let onTranscribe: () -> Void
+    @ViewBuilder let content: () -> Content
 
-    @ObservedObject private var transcriptionService = WhisperTranscriptionService.shared
     @State private var isEditing = false
     @State private var isConfirmingDelete = false
     @State private var errorMessage: String?
 
-    private var jobs: [TranscriptionJob] {
-        transcriptionService.jobs.filter { $0.courseID == course.id && $0.lectureNumber == lecture.number && !$0.phase.isCompleted }
-    }
-
     var body: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(lecture.displayTitle)
-                        .font(.title3.bold())
-                    Label(DateFormats.display.string(from: lecture.date), systemImage: "calendar")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+            HStack(spacing: 10) {
+                // The title is in the sidebar; this row carries what the sidebar doesn't.
+                Label(DateFormats.display.string(from: lecture.date), systemImage: "calendar")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 Spacer()
                 Button {
                     onTranscribe()
@@ -189,6 +147,7 @@ struct LectureDetailPane: View {
                     Label("Transcribe Recording...", systemImage: "waveform.badge.plus")
                 }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.small)
 
                 Menu {
                     Button("Edit Title & Date...") { isEditing = true }
@@ -200,19 +159,9 @@ struct LectureDetailPane: View {
                 .menuStyle(.borderlessButton)
                 .fixedSize()
             }
-            .padding()
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
             .background(Color(NSColor.controlBackgroundColor))
-
-            if !jobs.isEmpty {
-                VStack(spacing: 6) {
-                    ForEach(jobs) { job in
-                        JobRowView(job: job, showsCourse: false)
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                Divider()
-            }
 
             if let errorMessage {
                 Text(errorMessage)
@@ -221,7 +170,7 @@ struct LectureDetailPane: View {
                     .padding(8)
             }
 
-            RecordingsBrowser(course: course, groups: course.recordingGroups(for: lecture))
+            content()
         }
         .sheet(isPresented: $isEditing) {
             LectureEditorSheet(course: course, lecture: lecture) {
@@ -251,49 +200,195 @@ private extension JobPhase {
 
 // MARK: - Recordings
 
-/// Recording picker plus a viewer for the selected recording's transcript.
-struct RecordingsBrowser: View {
+/// Bar of transcripts and notes on the left, the open transcript or note on the right.
+struct TranscriptWorkspace: View {
     let course: Course
     let groups: [RecordingGroup]
+    @ObservedObject var nav: CourseNavigation
+    let onNewNote: () -> Void
 
-    @State private var selectedBaseName: String?
-
-    private var activeGroup: RecordingGroup? {
-        groups.first { $0.baseName == selectedBaseName } ?? groups.first
-    }
+    @State private var renamingNote: NoteFile?
+    @State private var renameText = ""
+    @State private var deletingNote: NoteFile?
+    @State private var errorMessage: String?
 
     var body: some View {
-        if groups.isEmpty {
-            VStack(spacing: 10) {
-                Image(systemName: "doc.text.magnifyingglass")
-                    .font(.system(size: 36))
-                    .foregroundColor(.secondary.opacity(0.6))
-                Text("No transcripts for this lecture yet")
-                    .font(.headline)
-                Text("Drop an audio recording onto the bar above, or use Transcribe Recording.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            VStack(spacing: 0) {
-                if groups.count > 1 {
-                    Picker("Recording (\(groups.count))", selection: Binding(get: { activeGroup?.baseName ?? "" }, set: { selectedBaseName = $0 })) {
-                        ForEach(groups) { group in
-                            Text(group.baseName).tag(group.baseName)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                    Divider()
+        HSplitView {
+            bar
+                .frame(minWidth: 150, idealWidth: 190, maxWidth: 280)
+
+            detail
+                .frame(minWidth: 320, maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .onAppear(perform: validateSelection)
+        .onChange(of: groups.map(\.baseName)) { validateSelection() }
+        .onChange(of: course.notes) { validateSelection() }
+        .alert("Rename Note", isPresented: Binding(get: { renamingNote != nil }, set: { if !$0 { renamingNote = nil } })) {
+            TextField("Name", text: $renameText)
+            Button("Rename") { rename() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Links like [[old name]] in other notes won't be updated.")
+        }
+        .confirmationDialog("Delete \(deletingNote?.name ?? "note")?", isPresented: Binding(get: { deletingNote != nil }, set: { if !$0 { deletingNote = nil } })) {
+            Button("Move Note to Trash", role: .destructive) { deleteNote() }
+        }
+    }
+
+    private var bar: some View {
+        List(selection: $nav.barItem) {
+            Section("Transcripts") {
+                if groups.isEmpty {
+                    Text("None yet")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-                if let group = activeGroup {
-                    RecordingDetailView(course: course, group: group)
-                        .id(group.id)
+                ForEach(groups) { group in
+                    TranscriptBarRow(group: group)
+                        .tag(CourseNavigation.BarItem.recording(group.baseName))
+                }
+            }
+
+            Section {
+                if course.notes.isEmpty {
+                    Text("None yet")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                ForEach(course.notes) { note in
+                    Label(note.name, systemImage: "note.text")
+                        .font(.subheadline)
+                        .lineLimit(1)
+                        .tag(CourseNavigation.BarItem.note(note.id))
+                        .contextMenu {
+                            Button("Rename...") {
+                                renameText = note.name
+                                renamingNote = note
+                            }
+                            Button("Reveal in Finder") { CourseStorageService.shared.revealInFinder(url: note.url) }
+                            Divider()
+                            Button("Delete...", role: .destructive) { deletingNote = note }
+                        }
+                }
+            } header: {
+                HStack {
+                    Text("Notes")
+                    Spacer()
+                    Button(action: onNewNote) {
+                        Image(systemName: "plus")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("New note")
                 }
             }
         }
+        .listStyle(.inset)
+    }
+
+    private var detail: some View {
+        VStack(spacing: 0) {
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .padding(8)
+            }
+            detailContent
+        }
+    }
+
+    @ViewBuilder
+    private var detailContent: some View {
+        switch nav.barItem {
+        case .recording(let baseName):
+            if let group = groups.first(where: { $0.baseName == baseName }) {
+                RecordingDetailView(course: course, group: group)
+                    .id(group.id)
+            } else {
+                emptyDetail
+            }
+        case .note(let id):
+            if let note = course.notes.first(where: { $0.id == id }) {
+                NoteEditorView(course: course, note: note) { target in
+                    nav.open(target, in: course)
+                }
+                .id(note.id)
+            } else {
+                emptyDetail
+            }
+        case nil:
+            emptyDetail
+        }
+    }
+
+    private var emptyDetail: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.system(size: 36))
+                .foregroundColor(.secondary.opacity(0.6))
+            Text(groups.isEmpty ? "No transcripts for this lecture yet" : "Select a transcript or note")
+                .font(.headline)
+            if groups.isEmpty {
+                Text("Drop an audio recording onto the bar above, or use Transcribe Recording. You can also add a note with the + beside Notes.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 360)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Keeps the open item valid: a note stays open across lectures, a transcript of another lecture doesn't.
+    private func validateSelection() {
+        switch nav.barItem {
+        case .recording(let baseName) where groups.contains(where: { $0.baseName == baseName }):
+            return
+        case .note(let id) where course.notes.contains(where: { $0.id == id }):
+            return
+        default:
+            nav.barItem = groups.first.map { .recording($0.baseName) }
+        }
+    }
+
+    private func rename() {
+        guard let note = renamingNote else { return }
+        do {
+            let renamed = try CourseStorageService.shared.renameNote(courseID: course.id, note: note, to: renameText)
+            if nav.barItem == .note(note.id) { nav.barItem = .note(renamed.id) }
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func deleteNote() {
+        guard let note = deletingNote else { return }
+        do {
+            try CourseStorageService.shared.deleteNote(courseID: course.id, note: note)
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+struct TranscriptBarRow: View {
+    let group: RecordingGroup
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Label(group.info.map { "Recording \($0.number)" } ?? group.baseName, systemImage: "doc.text")
+                .font(.subheadline)
+                .lineLimit(1)
+            if let info = group.info, info.durationSeconds > 0 {
+                Text(TranscriptFormatter.clock(info.durationSeconds))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .padding(.leading, 22)
+            }
+        }
+        .help(group.baseName)
     }
 }
 

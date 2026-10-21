@@ -4,7 +4,7 @@ import SwiftUI
 public struct JobsPanelView: View {
     @ObservedObject private var service = WhisperTranscriptionService.shared
     @ObservedObject private var settings = AppSettings.shared
-    @State private var isExpanded = true
+    @State private var isExpanded = false
 
     public init() {}
 
@@ -18,14 +18,10 @@ public struct JobsPanelView: View {
                 HStack(spacing: 10) {
                     Image(systemName: running > 0 ? "waveform.circle.fill" : (failed > 0 ? "exclamationmark.circle.fill" : "checkmark.circle.fill"))
                         .foregroundColor(running > 0 ? .accentColor : (failed > 0 ? .red : .green))
-                        .font(.title3)
+                        .font(.body)
 
                     Text(summary)
                         .font(.subheadline.bold())
-
-                    Text("Up to \(settings.maxConcurrentJobs) at once")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
 
                     Spacer()
 
@@ -43,7 +39,7 @@ public struct JobsPanelView: View {
                     .buttonStyle(.borderless)
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .padding(.vertical, 6)
 
                 if isExpanded {
                     ScrollView {
@@ -55,7 +51,7 @@ public struct JobsPanelView: View {
                         .padding(.horizontal, 16)
                         .padding(.bottom, 8)
                     }
-                    .frame(maxHeight: 180)
+                    .frame(maxHeight: 150)
                 }
             }
             .background(Color.accentColor.opacity(0.08))

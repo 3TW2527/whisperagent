@@ -24,7 +24,8 @@ let package = Package(
             path: "Sources",
             exclude: [
                 "Resources/Info.plist",
-                "Resources/WhisperLectures.entitlements"
+                "Resources/WhisperLectures.entitlements",
+                "Resources/Preview"
             ]
         )
     ]

@@ -12,6 +12,11 @@ A native macOS app for organising study notes by **course → lecture**, transcr
 - **Materials** (slides, PDFs, readings, notes) belong to the course and are shared by all its lectures.
 - **Recordings**: a lecture can have several transcribed recordings, named automatically as `<Course>_L03_R1`, `<Course>_L03_R2`, and so on. You can override the name when you start a transcription.
 
+Open a course and the sidebar switches to its **Lectures** and **Documents**. The main area shows a bar of the lecture's transcripts and your notes beside the open item. Use the gear icon (or right-click a course) to edit its name, code and tags, or to store it in a folder other than the library folder. Courses stored elsewhere are marked with a folder icon.
+
+### Markdown Notes
+Write notes per course from the **Notes** section of the transcript bar. They are plain `.md` files in the course's `notes/` folder. The editor shows a live preview next to the text (or switch to edit-only / preview-only). It supports GitHub-style Markdown, LaTeX math (`$x^2$`, `$$...$$`, `\(...\)`, `\[...\]`, rendered with KaTeX), and Obsidian-style `[[wikilinks]]` to other notes, lectures (`[[Lecture 3]]`) and files; clicking a link to a missing note creates it. **Export PDF** saves a paginated PDF of the rendered note.
+
 ### Parallel, On-Device Transcription
 - Built on [Argmax WhisperKit](https://github.com/argmaxinc/WhisperKit), so it runs entirely on the Mac, accelerated by the Apple Neural Engine. There's no Python and nothing is uploaded.
 - **Run several transcriptions at once.** Set the limit (1–4) in Settings. Extra jobs wait in a visible queue, and each job can be cancelled, retried or dismissed.
@@ -39,7 +44,8 @@ The app maintains a predictable folder layout plus generated guide files:
   <Course folder>/
     COURSE.md                 Lecture table (number, title, date, transcript links) and materials list
     course.json               Machine-readable course, lecture and recording metadata
-    materials/                Slides, PDFs, notes for the whole course
+    materials/                Slides, PDFs, readings for the whole course
+    notes/                    Your own Markdown notes
     transcripts/
       <Course>_L03_R1.md      Lecture 3, recording 1
       <Course>_L03_R1.srt     (optional extra formats)

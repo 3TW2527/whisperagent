@@ -9,6 +9,7 @@ struct PendingAudio: Identifiable, Hashable {
 
 enum ActiveSheet: Identifiable {
     case newCourse
+    case editCourse(courseID: String)
     case settings
     case askAI(courseID: String?)
     case migration
@@ -17,6 +18,7 @@ enum ActiveSheet: Identifiable {
     var id: String {
         switch self {
         case .newCourse: return "newCourse"
+        case .editCourse(let id): return "editCourse-\(id)"
         case .settings: return "settings"
         case .askAI(let id): return "askAI-\(id ?? "all")"
         case .migration: return "migration"
@@ -27,11 +29,13 @@ enum ActiveSheet: Identifiable {
 
 public struct MainView: View {
     @StateObject private var storage = CourseStorageService.shared
+    @StateObject private var nav = CourseNavigation()
     @ObservedObject private var settings = AppSettings.shared
 
     @State private var searchText = ""
     @State private var selectedTags: Set<String> = []
     @State private var activeSheet: ActiveSheet?
+    @State private var errorMessage: String?
     /// Audio files waiting for the trimmer, shown one after another.
     @State private var audioQueue: [PendingAudio] = []
 
@@ -72,10 +76,10 @@ public struct MainView: View {
                 if let course = storage.selectedCourse {
                     CourseDetailView(
                         course: course,
+                        nav: nav,
                         onSelectAudio: { url, lecture in
                             enqueueAudio(url, courseID: course.id, lectureNumber: lecture)
-                        },
-                        onAskAI: { activeSheet = .askAI(courseID: course.id) }
+                        }
                     )
                     .id(course.id)
                 } else {
@@ -85,11 +89,11 @@ public struct MainView: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        activeSheet = .askAI(courseID: nil)
+                        activeSheet = .askAI(courseID: storage.selectedCourseID)
                     } label: {
                         Label("Ask an AI", systemImage: "sparkles")
                     }
-                    .help("How to use Claude, ChatGPT/Codex or Gemini with your study library")
+                    .help("How to use Claude, ChatGPT/Codex or Gemini with \(storage.selectedCourse == nil ? "your study library" : "this course")")
                 }
             }
         }
@@ -97,6 +101,10 @@ public struct MainView: View {
             switch sheet {
             case .newCourse:
                 CourseEditorSheet { activeSheet = nil }
+            case .editCourse(let courseID):
+                if let course = storage.course(id: courseID) {
+                    CourseEditorSheet(course: course) { activeSheet = nil }
+                }
             case .settings:
                 SettingsView { activeSheet = nil }
             case .askAI(let courseID):
@@ -114,6 +122,14 @@ public struct MainView: View {
         .onReceive(NotificationCenter.default.publisher(for: .createNewCourse)) { _ in
             activeSheet = .newCourse
         }
+        .onChange(of: storage.selectedCourseID) {
+            nav.reset()
+        }
+        .alert("Something went wrong", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "")
+        }
         .onAppear {
             if !storage.legacyFolders.isEmpty {
                 activeSheet = .migration
@@ -123,7 +139,25 @@ public struct MainView: View {
 
     // MARK: - Sidebar
 
+    @ViewBuilder
     private var sidebar: some View {
+        // Selecting a course opens it: one change drives both the sidebar and the main area.
+        if let course = storage.selectedCourse {
+            VStack(spacing: 0) {
+                CourseSidebarView(
+                    course: course,
+                    nav: nav,
+                    onBack: { storage.selectedCourseID = nil },
+                    onEditCourse: { activeSheet = .editCourse(courseID: course.id) }
+                )
+                sidebarFooter
+            }
+        } else {
+            courseListSidebar
+        }
+    }
+
+    private var courseListSidebar: some View {
         VStack(spacing: 0) {
             if !storage.allTags.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
@@ -162,6 +196,18 @@ public struct MainView: View {
                         CourseRow(course: course)
                             .tag(course.id)
                             .contextMenu {
+                                Button("Course Settings...") {
+                                    activeSheet = .editCourse(courseID: course.id)
+                                }
+                                Button("Move to Another Folder...") {
+                                    chooseFolder(for: course)
+                                }
+                                if course.isExternal {
+                                    Button("Move Back to Library Folder") {
+                                        move(course, to: nil)
+                                    }
+                                }
+                                Divider()
                                 Button("Reveal in Finder") {
                                     storage.revealInFinder(url: course.folderURL)
                                 }
@@ -190,6 +236,12 @@ public struct MainView: View {
                 .background(Color.orange.opacity(0.12))
             }
 
+            sidebarFooter
+        }
+    }
+
+    private var sidebarFooter: some View {
+        VStack(spacing: 0) {
             Divider()
 
             HStack {
@@ -213,6 +265,27 @@ public struct MainView: View {
             }
             .padding(10)
             .background(Color(NSColor.controlBackgroundColor))
+        }
+    }
+
+    private func chooseFolder(for course: Course) {
+        let panel = NSOpenPanel()
+        panel.title = "Choose the folder for \(course.name)"
+        panel.message = "The course's files are moved directly into the folder you choose. It must be empty."
+        panel.prompt = "Use This Folder"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.directoryURL = course.folderURL.deletingLastPathComponent()
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        move(course, to: url)
+    }
+
+    private func move(_ course: Course, to destination: URL?) {
+        do {
+            try storage.moveCourse(id: course.id, to: destination)
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -268,6 +341,12 @@ struct CourseRow: View {
                 Text(course.name)
                     .font(.headline)
                     .lineLimit(1)
+                if course.isExternal {
+                    Image(systemName: "folder.badge.gearshape")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .help("Stored outside the library: \(course.folderURL.path)")
+                }
             }
 
             HStack(spacing: 8) {

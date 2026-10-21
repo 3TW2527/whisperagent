@@ -1,0 +1,174 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="katex.min.css">
+<style>
+  :root { color-scheme: light dark; --fg: #1d1d1f; --muted: #6e6e73; --bg: #ffffff; --code-bg: #f3f3f5; --border: #d8d8dc; --accent: #7c4dff; --missing: #c2410c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e8e8ea; --muted: #9a9aa0; --bg: #1e1e20; --code-bg: #2a2a2e; --border: #3a3a40; --accent: #a78bfa; --missing: #fb923c; }
+  }
+  /* PDF export always renders on white paper. */
+  body.print { --fg: #1d1d1f; --muted: #6e6e73; --bg: #ffffff; --code-bg: #f3f3f5; --border: #d8d8dc; --accent: #5b34d6; --missing: #c2410c; }
+  html, body { margin: 0; background: var(--bg); }
+  body { color: var(--fg); font: 15px/1.65 -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif; }
+  #content { padding: 20px 28px 60px; max-width: 860px; margin: 0 auto; overflow-wrap: anywhere; }
+  body.print #content { padding: 0; max-width: none; font-size: 11pt; }
+  h1, h2, h3, h4, h5, h6 { line-height: 1.25; margin: 1.4em 0 .5em; break-after: avoid; }
+  h1 { font-size: 1.9em; border-bottom: 1px solid var(--border); padding-bottom: .25em; }
+  h2 { font-size: 1.5em; border-bottom: 1px solid var(--border); padding-bottom: .2em; }
+  h3 { font-size: 1.25em; }
+  #content > :first-child { margin-top: 0; }
+  p, ul, ol, blockquote, table, pre { margin: .7em 0; }
+  a { color: var(--accent); }
+  a.wikilink { text-decoration: none; border-bottom: 1px solid var(--accent); cursor: pointer; }
+  a.wikilink.missing { color: var(--missing); border-bottom: 1px dashed var(--missing); }
+  code { font: .88em ui-monospace, "SF Mono", Menlo, monospace; background: var(--code-bg); padding: .12em .35em; border-radius: 4px; }
+  pre { background: var(--code-bg); padding: 12px 14px; border-radius: 8px; overflow-x: auto; break-inside: avoid; }
+  pre code { background: none; padding: 0; }
+  blockquote { margin-left: 0; padding: .1em 1em; border-left: 3px solid var(--accent); color: var(--muted); }
+  table { border-collapse: collapse; }
+  th, td { border: 1px solid var(--border); padding: 5px 10px; }
+  th { background: var(--code-bg); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 1.5em 0; }
+  img { max-width: 100%; }
+  li:has(> input[type="checkbox"]) { list-style: none; }
+  li > input[type="checkbox"] { margin: 0 .5em 0 -1.4em; }
+  .katex-display { margin: .9em 0; overflow-x: auto; overflow-y: hidden; break-inside: avoid; }
+  .math-error { color: var(--missing); font-family: ui-monospace, Menlo, monospace; }
+  .empty { color: var(--muted); font-style: italic; }
+  @media print { a { color: inherit; } }
+</style>
+<script src="marked.min.js"></script>
+<script src="katex.min.js"></script>
+</head>
+<body>
+<div id="content"></div>
+<script>
+  let context = { notes: [], lectures: [], files: [] };
+
+  function renderMath(tex, display) {
+    try {
+      return katex.renderToString(tex, { displayMode: display, throwOnError: false, strict: "ignore", trust: false });
+    } catch (e) {
+      return '<span class="math-error">' + escapeHTML(tex) + '</span>';
+    }
+  }
+
+  function escapeHTML(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  // $$ ... $$ and \[ ... \] on their own lines.
+  const mathBlock = {
+    name: "mathBlock",
+    level: "block",
+    start(src) {
+      const m = /(^|\n)(\$\$|\\\[)/.exec(src);
+      return m ? m.index + m[1].length : undefined;
+    },
+    tokenizer(src) {
+      const m = /^(?:\$\$\n?([\s\S]+?)\n?\$\$|\\\[\n?([\s\S]+?)\n?\\\])[ \t]*(?:\n|$)/.exec(src);
+      if (m) return { type: "mathBlock", raw: m[0], text: (m[1] ?? m[2]).trim() };
+    },
+    renderer(token) {
+      return renderMath(token.text, true) + "\n";
+    }
+  };
+
+  // $x$, $$x$$ and \( x \) inside a line.
+  const mathInline = {
+    name: "mathInline",
+    level: "inline",
+    start(src) {
+      const m = /\$|\\\(/.exec(src);
+      return m ? m.index : undefined;
+    },
+    tokenizer(src) {
+      let m = /^\$\$((?:\\[\s\S]|[^$\\])+?)\$\$/.exec(src);
+      if (m) return { type: "mathInline", raw: m[0], text: m[1].trim(), display: true };
+      m = /^\\\(([\s\S]+?)\\\)/.exec(src);
+      if (m) return { type: "mathInline", raw: m[0], text: m[1].trim(), display: false };
+      // A lone $ followed by a space or a digit-only body is currency, not math.
+      m = /^\$(?!\s)((?:\\.|[^$\\\n])+?)(?<!\s)\$(?!\d)/.exec(src);
+      if (m) return { type: "mathInline", raw: m[0], text: m[1], display: false };
+    },
+    renderer(token) {
+      return renderMath(token.text, token.display);
+    }
+  };
+
+  // [[Note]], [[Note|alias]], [[Note#Heading]]
+  const wikilink = {
+    name: "wikilink",
+    level: "inline",
+    start(src) {
+      const i = src.indexOf("[[");
+      return i < 0 ? undefined : i;
+    },
+    tokenizer(src) {
+      const m = /^\[\[([^\[\]|#]+?)(?:#([^\[\]|]*))?(?:\|([^\[\]]*))?\]\]/.exec(src);
+      if (m) return { type: "wikilink", raw: m[0], target: m[1].trim(), heading: m[2] || "", alias: (m[3] || "").trim() };
+    },
+    renderer(token) {
+      const hit = resolveLink(token.target);
+      const label = token.alias || (token.heading ? token.target + " › " + token.heading : token.target);
+      const cls = hit ? "wikilink" : "wikilink missing";
+      const kind = hit ? hit.kind : "missing";
+      const value = hit ? hit.value : token.target;
+      return '<a class="' + cls + '" data-kind="' + kind + '" data-value="' + escapeHTML(value) + '">' + escapeHTML(label) + "</a>";
+    }
+  };
+
+  function resolveLink(target) {
+    const t = target.trim().toLowerCase();
+    const note = context.notes.find(n => n.toLowerCase() === t);
+    if (note) return { kind: "note", value: note };
+    for (const l of context.lectures) {
+      const names = [
+        "lecture " + l.number,
+        "l" + String(l.number).padStart(2, "0"),
+        "l" + l.number,
+        "lecture " + l.number + ": " + l.title,
+        l.title
+      ].filter(n => n.trim()).map(n => n.toLowerCase());
+      if (names.includes(t)) return { kind: "lecture", value: String(l.number) };
+    }
+    const file = context.files.find(f => f.toLowerCase() === t || f.toLowerCase().replace(/\.[^.]+$/, "") === t);
+    if (file) return { kind: "file", value: file };
+    return null;
+  }
+
+  marked.use({ extensions: [mathBlock, mathInline, wikilink], gfm: true, breaks: true });
+
+  const content = document.getElementById("content");
+
+  window.setContext = function (ctx) {
+    context = ctx;
+  };
+
+  window.setPrintMode = function (on) {
+    document.body.classList.toggle("print", !!on);
+  };
+
+  window.renderNote = function (markdown) {
+    const scroll = window.scrollY;
+    content.innerHTML = markdown.trim()
+      ? marked.parse(markdown)
+      : '<p class="empty">Nothing to preview yet. Start typing on the left.</p>';
+    window.scrollTo(0, scroll);
+    return document.fonts ? document.fonts.ready.then(() => true) : true;
+  };
+
+  document.addEventListener("click", function (event) {
+    const el = event.target.closest("a");
+    if (!el) return;
+    if (el.classList.contains("wikilink")) {
+      event.preventDefault();
+      window.webkit.messageHandlers.wikilink.postMessage({ kind: el.dataset.kind, value: el.dataset.value });
+    }
+  });
+</script>
+</body>
+</html>

@@ -60,6 +60,7 @@ public class AppSettings: ObservableObject {
     private let transcriptFormatKey = "WhisperLectures_TranscriptFormat"
     private let transcriptFormatsKey = "WhisperLectures_TranscriptFormats"
     private let maxConcurrentJobsKey = "WhisperLectures_MaxConcurrentJobs"
+    private let externalCoursePathsKey = "WhisperLectures_ExternalCoursePaths"
 
     @Published public var rootFolderURL: URL {
         didSet {
@@ -103,6 +104,13 @@ public class AppSettings: ObservableObject {
         }
     }
 
+    /// Course folders that live outside the library folder. They are listed alongside the library's courses.
+    @Published public var externalCoursePaths: [String] {
+        didSet {
+            UserDefaults.standard.set(externalCoursePaths, forKey: externalCoursePathsKey)
+        }
+    }
+
     public static let concurrentJobsRange = 1...4
 
     /// Formats in a stable display order.
@@ -128,6 +136,8 @@ public class AppSettings: ObservableObject {
         // Load Concurrency Limit
         let savedJobs = UserDefaults.standard.integer(forKey: maxConcurrentJobsKey)
         self.maxConcurrentJobs = Self.concurrentJobsRange.contains(savedJobs) ? savedJobs : 2
+
+        self.externalCoursePaths = UserDefaults.standard.stringArray(forKey: externalCoursePathsKey) ?? []
 
         // Load Model
         let savedModel = UserDefaults.standard.string(forKey: selectedModelKey) ?? "openai_whisper-base"

@@ -37,7 +37,7 @@ public struct SettingsView: View {
                         Text("Root Storage Location")
                             .font(.headline)
 
-                        Text("Each course is a subfolder of this directory, next to the generated INDEX.md and AGENTS.md files that AI assistants read. Choose a local folder, or an iCloud Drive folder to sync across devices.")
+                        Text("Each course is a subfolder of this directory (unless you stored it elsewhere in its settings), next to the generated INDEX.md and AGENTS.md files that AI assistants read. Choose a local folder, or an iCloud Drive folder to sync across devices.")
                             .font(.caption)
                             .foregroundColor(.secondary)
 
@@ -79,7 +79,7 @@ public struct SettingsView: View {
 
                     // File Ingestion Section
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Adding Materials (Copy vs Move)")
+                        Text("Adding Documents (Copy vs Move)")
                             .font(.headline)
 
                         Text("Choose whether files dragged into a course are copied or moved from their original location.")

@@ -94,12 +94,16 @@ public struct Course: Identifiable, Hashable, Sendable {
     public static let overviewFileName = "COURSE.md"
     public static let materialsFolderName = "materials"
     public static let transcriptsFolderName = "transcripts"
+    public static let notesFolderName = "notes"
     public static let internalFolderName = ".whisperlectures"
 
     public let folderURL: URL
     public var metadata: CourseMetadata
     public var materials: [LectureFile]
     public var transcripts: [TranscriptFile]
+    public var notes: [NoteFile] = []
+    /// True when the course lives outside the library folder.
+    public var isExternal = false
 
     public var id: String { folderURL.path }
     public var name: String { metadata.name }
@@ -109,6 +113,7 @@ public struct Course: Identifiable, Hashable, Sendable {
     public var metadataURL: URL { folderURL.appendingPathComponent(Self.metadataFileName) }
     public var materialsURL: URL { folderURL.appendingPathComponent(Self.materialsFolderName) }
     public var transcriptsURL: URL { folderURL.appendingPathComponent(Self.transcriptsFolderName) }
+    public var notesURL: URL { folderURL.appendingPathComponent(Self.notesFolderName) }
     public var segmentsURL: URL { folderURL.appendingPathComponent(Self.internalFolderName).appendingPathComponent("segments") }
 
     /// Short identifier used as the prefix of transcript file names: the course code if set, otherwise the name.

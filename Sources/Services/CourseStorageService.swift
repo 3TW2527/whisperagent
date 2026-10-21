@@ -13,11 +13,19 @@ public enum StorageError: LocalizedError {
     case courseNotFound
     case lectureNotFound
     case segmentsMissing
+    case courseBusy
+    case invalidDestination
+    case destinationNotEmpty
+    case noteNotFound
 
     public var errorDescription: String? {
         switch self {
         case .courseNotFound: return "The course folder could not be found. It may have been moved or renamed."
         case .lectureNotFound: return "The lecture no longer exists in this course."
+        case .courseBusy: return "A transcription for this course is still running. Wait for it to finish, then try again."
+        case .invalidDestination: return "A course can't be moved into itself."
+        case .destinationNotEmpty: return "That folder already has files in it. Choose an empty folder, or create a new one."
+        case .noteNotFound: return "The note could not be found. It may have been moved or deleted."
         case .segmentsMissing: return "No timing data is saved for this recording, so it can't be exported to another format. Transcripts created before this version only exist in their original format."
         }
     }
@@ -25,12 +33,13 @@ public enum StorageError: LocalizedError {
 
 /// Reads and writes the course library on disk.
 ///
-/// Layout under the root folder:
+/// Layout under the root folder (courses can also live in other folders; see `moveCourse`):
 /// ```
 /// <Course>/course.json        metadata (source of truth for lectures and recordings)
 /// <Course>/COURSE.md          generated overview
 /// <Course>/materials/         slides, PDFs, notes for the whole course
 /// <Course>/transcripts/       <Prefix>_L03_R1.md / .txt / .srt / .vtt
+/// <Course>/notes/             the student's own Markdown notes
 /// <Course>/.whisperlectures/  timing data used to re-export transcripts
 /// ```
 @MainActor
@@ -91,11 +100,18 @@ public class CourseStorageService: ObservableObject {
             }
         }
 
+        for path in AppSettings.shared.externalCoursePaths {
+            let url = URL(fileURLWithPath: path)
+            guard isDirectory(url), let course = loadCourse(at: url), !loaded.contains(where: { $0.id == course.id }) else { continue }
+            loaded.append(course)
+        }
+
         courses = loaded.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         legacyFolders = legacy.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
 
+        // Nothing is selected by default: selecting a course opens it.
         if selectedCourse == nil {
-            selectedCourseID = courses.first?.id
+            selectedCourseID = nil
         }
 
         LibraryIndexGenerator.regenerate(rootURL: rootURL, courses: courses)
@@ -116,16 +132,30 @@ public class CourseStorageService: ObservableObject {
             .map(TranscriptFile.init(url:))
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
 
-        return Course(folderURL: folderURL, metadata: metadata, materials: materials, transcripts: transcripts)
+        let notes = listFiles(in: folderURL.appendingPathComponent(Course.notesFolderName))
+            .filter { $0.pathExtension.lowercased() == "md" }
+            .map(NoteFile.init(url:))
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+
+        var course = Course(folderURL: folderURL, metadata: metadata, materials: materials, transcripts: transcripts, notes: notes)
+        course.isExternal = !isSameFolder(folderURL.deletingLastPathComponent(), AppSettings.shared.rootFolderURL)
+        return course
     }
 
     // MARK: - Courses
 
     @discardableResult
-    public func createCourse(name rawName: String, code: String = "", tags: [String] = []) -> Course? {
+    public func createCourse(name rawName: String, code: String = "", tags: [String] = [], location: URL? = nil) -> Course? {
         let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "New Course" : rawName.trimmingCharacters(in: .whitespacesAndNewlines)
         let code = code.trimmingCharacters(in: .whitespacesAndNewlines)
-        let folderURL = uniqueURL(in: AppSettings.shared.rootFolderURL, name: folderName(name: name, code: code), ext: "")
+        // With a custom location, that folder itself is the course folder.
+        let folderURL: URL
+        if let location {
+            guard Self.isUsableCourseFolder(location) else { return nil }
+            folderURL = location.standardizedFileURL
+        } else {
+            folderURL = uniqueURL(in: AppSettings.shared.rootFolderURL, name: folderName(name: name, code: code), ext: "")
+        }
 
         do {
             try fileManager.createDirectory(at: folderURL, withIntermediateDirectories: true)
@@ -133,6 +163,9 @@ public class CourseStorageService: ObservableObject {
             try fileManager.createDirectory(at: folderURL.appendingPathComponent(Course.transcriptsFolderName), withIntermediateDirectories: true)
             let metadata = CourseMetadata(name: name, code: code, tags: Self.normalizedTags(tags))
             try writeMetadata(metadata, to: folderURL.appendingPathComponent(Course.metadataFileName))
+            if !isSameFolder(folderURL.deletingLastPathComponent(), AppSettings.shared.rootFolderURL) {
+                registerExternalCourse(folderURL)
+            }
             reload()
             selectedCourseID = folderURL.path
             return course(id: folderURL.path)
@@ -142,15 +175,18 @@ public class CourseStorageService: ObservableObject {
         }
     }
 
-    /// Updates name, code and tags. Renames the course folder to match; transcript file names are kept.
-    public func updateCourse(id: String, name: String, code: String, tags: [String]) throws {
+    /// Updates name, code and tags. Renames a library course's folder to match; transcript file names are kept.
+    /// Returns the course's id, which changes when the folder is renamed.
+    @discardableResult
+    public func updateCourse(id: String, name: String, code: String, tags: [String]) throws -> String {
         guard let course = course(id: id) else { throw StorageError.courseNotFound }
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedCode = code.trimmingCharacters(in: .whitespacesAndNewlines)
 
         var folderURL = course.folderURL
         let desiredFolder = folderName(name: trimmedName.isEmpty ? course.name : trimmedName, code: trimmedCode)
-        if desiredFolder != folderURL.lastPathComponent, !hasActiveReservations(courseID: id) {
+        // A folder the user chose for the course keeps its name.
+        if !course.isExternal, desiredFolder != folderURL.lastPathComponent, !hasActiveReservations(courseID: id) {
             let newURL = uniqueURL(in: folderURL.deletingLastPathComponent(), name: desiredFolder, ext: "")
             try fileManager.moveItem(at: folderURL, to: newURL)
             folderURL = newURL
@@ -163,6 +199,68 @@ public class CourseStorageService: ObservableObject {
         }
         selectedCourseID = folderURL.path
         reload()
+        return folderURL.path
+    }
+
+    /// Makes `destination` the course's folder, moving all of its files there. The folder must be new or empty.
+    /// Pass nil to move the course back into the library folder. Returns the course's new id.
+    @discardableResult
+    public func moveCourse(id: String, to destination: URL?) throws -> String {
+        guard let course = course(id: id) else { throw StorageError.courseNotFound }
+        let library = AppSettings.shared.rootFolderURL
+        let source = course.folderURL.standardizedFileURL
+        let newURL: URL
+
+        if let destination {
+            newURL = destination.standardizedFileURL
+            if newURL.path == source.path { return id }
+            guard !hasActiveReservations(courseID: id) else { throw StorageError.courseBusy }
+            guard !newURL.path.hasPrefix(source.path + "/") else { throw StorageError.invalidDestination }
+            guard Self.isUsableCourseFolder(newURL) else { throw StorageError.destinationNotEmpty }
+            if fileManager.fileExists(atPath: newURL.path) {
+                try fileManager.removeItem(at: newURL)  // empty: moveItem needs the destination to be free
+            } else {
+                try fileManager.createDirectory(at: newURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            }
+        } else {
+            guard course.isExternal else { return id }
+            guard !hasActiveReservations(courseID: id) else { throw StorageError.courseBusy }
+            newURL = uniqueURL(in: library, name: source.lastPathComponent, ext: "")
+        }
+
+        try fileManager.moveItem(at: source, to: newURL)
+
+        unregisterExternalCourse(course.folderURL)
+        if !isSameFolder(newURL.deletingLastPathComponent(), library) {
+            registerExternalCourse(newURL)
+        }
+        selectedCourseID = newURL.path
+        reload()
+        return newURL.path
+    }
+
+    /// True for a folder that doesn't exist yet or has nothing in it (Finder's .DS_Store aside).
+    public static func isUsableCourseFolder(_ url: URL) -> Bool {
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) else { return true }
+        guard isDir.boolValue else { return false }
+        let contents = (try? FileManager.default.contentsOfDirectory(atPath: url.path)) ?? []
+        return contents.allSatisfy { $0 == ".DS_Store" }
+    }
+
+    private func registerExternalCourse(_ url: URL) {
+        let path = url.path
+        if !AppSettings.shared.externalCoursePaths.contains(path) {
+            AppSettings.shared.externalCoursePaths.append(path)
+        }
+    }
+
+    private func unregisterExternalCourse(_ url: URL) {
+        AppSettings.shared.externalCoursePaths.removeAll { $0 == url.path }
+    }
+
+    private func isSameFolder(_ a: URL, _ b: URL) -> Bool {
+        a.standardizedFileURL.path == b.standardizedFileURL.path
     }
 
     public func deleteCourse(id: String) {
@@ -172,6 +270,7 @@ public class CourseStorageService: ObservableObject {
         } catch {
             print("Failed to move course to Trash: \(error)")
         }
+        unregisterExternalCourse(course.folderURL)
         if selectedCourseID == id { selectedCourseID = nil }
         reload()
     }
@@ -236,6 +335,49 @@ public class CourseStorageService: ObservableObject {
         try? fileManager.removeItem(at: segments)
     }
 
+    // MARK: - Notes
+
+    /// Creates an empty note. The name is made unique and safe for `[[wikilinks]]`.
+    @discardableResult
+    public func createNote(courseID: String, title: String) throws -> NoteFile {
+        guard let course = course(id: courseID) else { throw StorageError.courseNotFound }
+        try fileManager.createDirectory(at: course.notesURL, withIntermediateDirectories: true)
+        let name = noteFileName(title)
+        let url = uniqueURL(in: course.notesURL, name: name, ext: "md")
+        try "# \(url.deletingPathExtension().lastPathComponent)\n\n".write(to: url, atomically: true, encoding: .utf8)
+        reload()
+        return NoteFile(url: url)
+    }
+
+    @discardableResult
+    public func renameNote(courseID: String, note: NoteFile, to title: String) throws -> NoteFile {
+        guard let course = course(id: courseID) else { throw StorageError.courseNotFound }
+        guard fileManager.fileExists(atPath: note.url.path) else { throw StorageError.noteNotFound }
+        let name = noteFileName(title)
+        if name == note.name { return note }
+        let url = uniqueURL(in: course.notesURL, name: name, ext: "md")
+        try fileManager.moveItem(at: note.url, to: url)
+        reload()
+        return NoteFile(url: url)
+    }
+
+    public func deleteNote(courseID: String, note: NoteFile) throws {
+        try fileManager.trashItem(at: note.url, resultingItemURL: nil)
+        reload()
+    }
+
+    /// Saves note text without reloading the library, so typing never rebuilds the UI.
+    public func writeNote(_ note: NoteFile, text: String) throws {
+        try text.write(to: note.url, atomically: true, encoding: .utf8)
+    }
+
+    private func noteFileName(_ title: String) -> String {
+        let blocked = CharacterSet(charactersIn: "[]#|^")
+        let cleaned = sanitizeFileName(title).components(separatedBy: blocked).joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return cleaned.isEmpty ? "Untitled" : cleaned
+    }
+
     // MARK: - Materials
 
     @discardableResult
@@ -256,6 +398,11 @@ public class CourseStorageService: ObservableObject {
 
         reload()
         return LectureFile(url: destination)
+    }
+
+    public func deleteMaterial(_ file: LectureFile) {
+        try? fileManager.trashItem(at: file.url, resultingItemURL: nil)
+        reload()
     }
 
     // MARK: - Recordings

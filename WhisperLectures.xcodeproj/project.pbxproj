@@ -8,16 +8,20 @@
 
 /* Begin PBXBuildFile section */
 		02F7A24993FCE4F4AF405168 /* QuickLookPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7947A4EB1FCD8B9C01901FB /* QuickLookPreview.swift */; };
+		054C573A9558332041CD9E14 /* NotePDFExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC607152F6444EB1C9AC0E51 /* NotePDFExporter.swift */; };
 		09859373B4A77D4BBB2D31AD /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB775FB6721014CBFDEB86FE /* MainView.swift */; };
+		111E3BA1B80CA6027BC3DCD4 /* NoteFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC34BC77A5D178270A896308 /* NoteFile.swift */; };
 		22C370C5AB7D1789DE494870 /* MigrationSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F444F2DA530F1E882CE5C4CE /* MigrationSheet.swift */; };
 		23F0D14C3F3D48D7F99D059B /* AskAIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3B33CC93BD7E6C74AD0984D /* AskAIView.swift */; };
 		29C2AE728F065216FA1B377C /* AudioProcessingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 399FD0A2A4BFCE8A62C800BE /* AudioProcessingService.swift */; };
+		2A6049A801864D9F83F08722 /* NoteEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17D300A48CFF304133D8F81A /* NoteEditorView.swift */; };
 		3823316B92087CF22B8171EC /* WhisperTranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BAF8A35A06CD05A70373595 /* WhisperTranscriptionService.swift */; };
 		459ECCA0077F34DC0195801F /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = F2901A4EA7C4B41C05A06402 /* WhisperKit */; };
 		474AF61847E435CC44AE728C /* WaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB6DB14F6134962F1168B6D /* WaveformView.swift */; };
+		4B4F4A07A703806A7A88BC8E /* MarkdownPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E13073A39B4C42D78754588D /* MarkdownPreviewView.swift */; };
 		4D221D516FB8A409ED03E934 /* StudyBundleExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84B57E37961C6C1B93690796 /* StudyBundleExporter.swift */; };
 		505293CED130C37CC9964B87 /* TranscriptFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E273D70A8A496F1879E787F /* TranscriptFile.swift */; };
-		5E3F7155E895AEFE3DD9DF7F /* FileAttachmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F31BBD5752286B11F8A31390 /* FileAttachmentsView.swift */; };
+		5C88CC3E8749D04451ADB54E /* Preview in Resources */ = {isa = PBXBuildFile; fileRef = 9481D59359187CFCAA6A03EC /* Preview */; };
 		6C25D6EC2BFA7D7D254184B9 /* TranscriptionJob.swift in Sources */ = {isa = PBXBuildFile; fileRef = E58AB643567A50F8F18AE702 /* TranscriptionJob.swift */; };
 		6CC6190243EB4E3826824AB6 /* EditorSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DA097788C5BDD903BAA3014 /* EditorSheets.swift */; };
 		6CD6649180B48B47E448803A /* JobsPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8801CD0BFA5737752FCF629F /* JobsPanelView.swift */; };
@@ -25,12 +29,16 @@
 		72DE569093494F6F88950CFC /* TranscriptFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C57B6AAA10157990DCE36A8 /* TranscriptFormatter.swift */; };
 		7D572A2B09CA41B34A21CB42 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 4353ECD592B677340C7A839A /* AppIcon.icns */; };
 		80096E8C1FBA84EDC3A44366 /* LecturesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EE0D1DCA86B5CB7C587FD85 /* LecturesView.swift */; };
+		956FD7BDB21B72D316585CFD /* CourseSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C09B9FD2B268DCE5B971929 /* CourseSidebarView.swift */; };
+		9AC87D8AB21321E4142CC081 /* MarkdownEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DB3D615668A6AAA35DAB93C /* MarkdownEditorView.swift */; };
 		9B3EC482B1E0B08D8AB967ED /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AACE37D91B8D16EF78518DB /* SettingsView.swift */; };
 		A11BAFC9847322A99BD199AB /* CourseStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2041E38D8D54D80E85F46B8 /* CourseStorageService.swift */; };
 		A355B723F6F554BA69AA3DC8 /* AudioAnalysisResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02B40AFE6B17065F61E52E6D /* AudioAnalysisResult.swift */; };
 		BDCC01D18C60B0BA5124E740 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514C86781B3626BC2EF59F6A /* AppSettings.swift */; };
+		C0FDE9820E23A8DFB6F64929 /* CourseNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A9DEB1927FDDE609220C89 /* CourseNavigation.swift */; };
 		C86F5ADE9BE186F1547C1A60 /* CourseDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E0D17FB208105A180B1690 /* CourseDetailView.swift */; };
 		C96D6A8D150E369C22D7F63F /* AudioTrimmerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 384C5DF751225D7FBA8EA2F4 /* AudioTrimmerSheet.swift */; };
+		CA7C62EFDD58932BB9AD52E1 /* NoteHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F639F2C37C3E7738A9350CA /* NoteHelpView.swift */; };
 		DDF0BABC0431D23F65F5DBDB /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A21AC9E765EB70E9B1845538 /* Assets.xcassets */; };
 		DE33127F774E42AEE4227616 /* LibraryIndexGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B3F4F24BB10AADA256FB66F /* LibraryIndexGenerator.swift */; };
 		DEE7C3A6AC1D041A0F723DA0 /* Course.swift in Sources */ = {isa = PBXBuildFile; fileRef = 154D6981D7EE5B98FD23837D /* Course.swift */; };
@@ -43,8 +51,10 @@
 		0C57B6AAA10157990DCE36A8 /* TranscriptFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptFormatter.swift; sourceTree = "<group>"; };
 		12BBACCC60A7EA435A5AA1E1 /* VoiceMemosService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMemosService.swift; sourceTree = "<group>"; };
 		154D6981D7EE5B98FD23837D /* Course.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Course.swift; sourceTree = "<group>"; };
+		17D300A48CFF304133D8F81A /* NoteEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorView.swift; sourceTree = "<group>"; };
 		1B3F4F24BB10AADA256FB66F /* LibraryIndexGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryIndexGenerator.swift; sourceTree = "<group>"; };
 		1BAF8A35A06CD05A70373595 /* WhisperTranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperTranscriptionService.swift; sourceTree = "<group>"; };
+		1C09B9FD2B268DCE5B971929 /* CourseSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseSidebarView.swift; sourceTree = "<group>"; };
 		1EE0D1DCA86B5CB7C587FD85 /* LecturesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LecturesView.swift; sourceTree = "<group>"; };
 		22041356948E6520BF1E6F70 /* WhisperLectures.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WhisperLectures.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		384C5DF751225D7FBA8EA2F4 /* AudioTrimmerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTrimmerSheet.swift; sourceTree = "<group>"; };
@@ -53,18 +63,24 @@
 		3FB6DB14F6134962F1168B6D /* WaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformView.swift; sourceTree = "<group>"; };
 		4353ECD592B677340C7A839A /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		514C86781B3626BC2EF59F6A /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		5F639F2C37C3E7738A9350CA /* NoteHelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteHelpView.swift; sourceTree = "<group>"; };
 		71E0D17FB208105A180B1690 /* CourseDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseDetailView.swift; sourceTree = "<group>"; };
 		7AACE37D91B8D16EF78518DB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		7DC2C0BA1190A05565348557 /* WhisperLecturesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperLecturesApp.swift; sourceTree = "<group>"; };
 		7E273D70A8A496F1879E787F /* TranscriptFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptFile.swift; sourceTree = "<group>"; };
 		84B57E37961C6C1B93690796 /* StudyBundleExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyBundleExporter.swift; sourceTree = "<group>"; };
 		8801CD0BFA5737752FCF629F /* JobsPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobsPanelView.swift; sourceTree = "<group>"; };
+		8DB3D615668A6AAA35DAB93C /* MarkdownEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownEditorView.swift; sourceTree = "<group>"; };
+		9481D59359187CFCAA6A03EC /* Preview */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Preview; path = Sources/Resources/Preview; sourceTree = SOURCE_ROOT; };
 		A21AC9E765EB70E9B1845538 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AB775FB6721014CBFDEB86FE /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
 		B3D3B4AC3241DC071C9580B1 /* LectureFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LectureFile.swift; sourceTree = "<group>"; };
 		C2041E38D8D54D80E85F46B8 /* CourseStorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseStorageService.swift; sourceTree = "<group>"; };
+		CC34BC77A5D178270A896308 /* NoteFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteFile.swift; sourceTree = "<group>"; };
+		D4A9DEB1927FDDE609220C89 /* CourseNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseNavigation.swift; sourceTree = "<group>"; };
+		DC607152F6444EB1C9AC0E51 /* NotePDFExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePDFExporter.swift; sourceTree = "<group>"; };
+		E13073A39B4C42D78754588D /* MarkdownPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownPreviewView.swift; sourceTree = "<group>"; };
 		E58AB643567A50F8F18AE702 /* TranscriptionJob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionJob.swift; sourceTree = "<group>"; };
-		F31BBD5752286B11F8A31390 /* FileAttachmentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileAttachmentsView.swift; sourceTree = "<group>"; };
 		F3B33CC93BD7E6C74AD0984D /* AskAIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskAIView.swift; sourceTree = "<group>"; };
 		F444F2DA530F1E882CE5C4CE /* MigrationSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationSheet.swift; sourceTree = "<group>"; };
 		F7947A4EB1FCD8B9C01901FB /* QuickLookPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookPreview.swift; sourceTree = "<group>"; };
@@ -138,8 +154,9 @@
 				F3B33CC93BD7E6C74AD0984D /* AskAIView.swift */,
 				384C5DF751225D7FBA8EA2F4 /* AudioTrimmerSheet.swift */,
 				71E0D17FB208105A180B1690 /* CourseDetailView.swift */,
+				D4A9DEB1927FDDE609220C89 /* CourseNavigation.swift */,
+				1C09B9FD2B268DCE5B971929 /* CourseSidebarView.swift */,
 				3DA097788C5BDD903BAA3014 /* EditorSheets.swift */,
-				F31BBD5752286B11F8A31390 /* FileAttachmentsView.swift */,
 				8801CD0BFA5737752FCF629F /* JobsPanelView.swift */,
 				1EE0D1DCA86B5CB7C587FD85 /* LecturesView.swift */,
 				AB775FB6721014CBFDEB86FE /* MainView.swift */,
@@ -147,8 +164,21 @@
 				F7947A4EB1FCD8B9C01901FB /* QuickLookPreview.swift */,
 				7AACE37D91B8D16EF78518DB /* SettingsView.swift */,
 				251D2AF5352BE24ABA5AA1FF /* Components */,
+				BF0BB2D2A7315F9A820B524A /* Notes */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		BF0BB2D2A7315F9A820B524A /* Notes */ = {
+			isa = PBXGroup;
+			children = (
+				8DB3D615668A6AAA35DAB93C /* MarkdownEditorView.swift */,
+				E13073A39B4C42D78754588D /* MarkdownPreviewView.swift */,
+				17D300A48CFF304133D8F81A /* NoteEditorView.swift */,
+				5F639F2C37C3E7738A9350CA /* NoteHelpView.swift */,
+				DC607152F6444EB1C9AC0E51 /* NotePDFExporter.swift */,
+			);
+			path = Notes;
 			sourceTree = "<group>";
 		};
 		F989C95BD9B22CE8EA9C7C0E /* Resources */ = {
@@ -156,6 +186,7 @@
 			children = (
 				4353ECD592B677340C7A839A /* AppIcon.icns */,
 				A21AC9E765EB70E9B1845538 /* Assets.xcassets */,
+				9481D59359187CFCAA6A03EC /* Preview */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -167,6 +198,7 @@
 				02B40AFE6B17065F61E52E6D /* AudioAnalysisResult.swift */,
 				154D6981D7EE5B98FD23837D /* Course.swift */,
 				B3D3B4AC3241DC071C9580B1 /* LectureFile.swift */,
+				CC34BC77A5D178270A896308 /* NoteFile.swift */,
 				7E273D70A8A496F1879E787F /* TranscriptFile.swift */,
 				E58AB643567A50F8F18AE702 /* TranscriptionJob.swift */,
 			);
@@ -236,6 +268,7 @@
 			files = (
 				7D572A2B09CA41B34A21CB42 /* AppIcon.icns in Resources */,
 				DDF0BABC0431D23F65F5DBDB /* Assets.xcassets in Resources */,
+				5C88CC3E8749D04451ADB54E /* Preview in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -253,15 +286,22 @@
 				C96D6A8D150E369C22D7F63F /* AudioTrimmerSheet.swift in Sources */,
 				DEE7C3A6AC1D041A0F723DA0 /* Course.swift in Sources */,
 				C86F5ADE9BE186F1547C1A60 /* CourseDetailView.swift in Sources */,
+				C0FDE9820E23A8DFB6F64929 /* CourseNavigation.swift in Sources */,
+				956FD7BDB21B72D316585CFD /* CourseSidebarView.swift in Sources */,
 				A11BAFC9847322A99BD199AB /* CourseStorageService.swift in Sources */,
 				6CC6190243EB4E3826824AB6 /* EditorSheets.swift in Sources */,
-				5E3F7155E895AEFE3DD9DF7F /* FileAttachmentsView.swift in Sources */,
 				6CD6649180B48B47E448803A /* JobsPanelView.swift in Sources */,
 				6EBA613DDD1BB46FFA391BD3 /* LectureFile.swift in Sources */,
 				80096E8C1FBA84EDC3A44366 /* LecturesView.swift in Sources */,
 				DE33127F774E42AEE4227616 /* LibraryIndexGenerator.swift in Sources */,
 				09859373B4A77D4BBB2D31AD /* MainView.swift in Sources */,
+				9AC87D8AB21321E4142CC081 /* MarkdownEditorView.swift in Sources */,
+				4B4F4A07A703806A7A88BC8E /* MarkdownPreviewView.swift in Sources */,
 				22C370C5AB7D1789DE494870 /* MigrationSheet.swift in Sources */,
+				2A6049A801864D9F83F08722 /* NoteEditorView.swift in Sources */,
+				111E3BA1B80CA6027BC3DCD4 /* NoteFile.swift in Sources */,
+				CA7C62EFDD58932BB9AD52E1 /* NoteHelpView.swift in Sources */,
+				054C573A9558332041CD9E14 /* NotePDFExporter.swift in Sources */,
 				02F7A24993FCE4F4AF405168 /* QuickLookPreview.swift in Sources */,
 				9B3EC482B1E0B08D8AB967ED /* SettingsView.swift in Sources */,
 				4D221D516FB8A409ED03E934 /* StudyBundleExporter.swift in Sources */,

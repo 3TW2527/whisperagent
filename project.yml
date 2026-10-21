@@ -21,6 +21,10 @@ targets:
         excludes:
           - "Resources/Info.plist"
           - "Resources/WhisperLectures.entitlements"
+          - "Resources/Preview"
+      # Keeps the folder layout so note.html finds katex.min.css and fonts/.
+      - path: Sources/Resources/Preview
+        type: folder
     dependencies:
       - package: WhisperKit
         product: WhisperKit
