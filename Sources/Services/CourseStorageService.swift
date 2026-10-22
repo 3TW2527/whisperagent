@@ -337,7 +337,21 @@ public class CourseStorageService: ObservableObject {
 
     // MARK: - Notes
 
-    /// Creates an empty note. The name is made unique and safe for `[[wikilinks]]`.
+    /// Creates an empty note named `L03 <lecture title> · <date> · <index>` (or `Note · <date> · <index>` without a
+    /// lecture), so several notes can exist for one lecture. The name is unique and safe for `[[wikilinks]]`.
+    @discardableResult
+    public func createNote(courseID: String, lecture: Lecture?) throws -> NoteFile {
+        guard let course = course(id: courseID) else { throw StorageError.courseNotFound }
+        try fileManager.createDirectory(at: course.notesURL, withIntermediateDirectories: true)
+        let date = lecture?.date ?? Date()
+        let existing = course.notes.filter { $0.lectureNumber == lecture?.number }.count
+        var parts = [lecture.map { [$0.label, $0.title.trimmingCharacters(in: .whitespaces)].filter { !$0.isEmpty }.joined(separator: " ") } ?? "Note"]
+        parts.append(date.formatted(.iso8601.year().month().day()))
+        parts.append(String(existing + 1))
+        return try createNote(courseID: courseID, title: parts.joined(separator: " · "))
+    }
+
+    /// Creates an empty note with this title, e.g. from a `[[wikilink]]` to a note that doesn't exist yet.
     @discardableResult
     public func createNote(courseID: String, title: String) throws -> NoteFile {
         guard let course = course(id: courseID) else { throw StorageError.courseNotFound }
@@ -353,7 +367,12 @@ public class CourseStorageService: ObservableObject {
     public func renameNote(courseID: String, note: NoteFile, to title: String) throws -> NoteFile {
         guard let course = course(id: courseID) else { throw StorageError.courseNotFound }
         guard fileManager.fileExists(atPath: note.url.path) else { throw StorageError.noteNotFound }
-        let name = noteFileName(title)
+        var name = noteFileName(title)
+        // A lecture's notes keep their `L03 ` prefix so they stay attached to that lecture.
+        if let number = note.lectureNumber {
+            let prefix = String(format: "L%02d", number)
+            if !name.hasPrefix(prefix + " ") { name = "\(prefix) \(name)" }
+        }
         if name == note.name { return note }
         let url = uniqueURL(in: course.notesURL, name: name, ext: "md")
         try fileManager.moveItem(at: note.url, to: url)

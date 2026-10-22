@@ -42,7 +42,7 @@ public struct LecturesView: View {
                     .buttonStyle(.borderedProminent)
 
                     Button {
-                        createNote(title: "")
+                        createNote(lecture: nil)
                     } label: {
                         Label("New Note", systemImage: "square.and.pencil")
                     }
@@ -75,13 +75,14 @@ public struct LecturesView: View {
         TranscriptWorkspace(
             course: course,
             groups: groups,
+            lecture: lecture,
             nav: nav,
-            onNewNote: { createNote(title: lecture.map { "Lecture \($0.number) notes" } ?? "") }
+            onNewNote: { createNote(lecture: lecture) }
         )
     }
 
-    private func createNote(title: String) {
-        if let note = try? CourseStorageService.shared.createNote(courseID: course.id, title: title) {
+    private func createNote(lecture: Lecture?) {
+        if let note = try? CourseStorageService.shared.createNote(courseID: course.id, lecture: lecture) {
             nav.barItem = .note(note.id)
         }
     }
@@ -204,6 +205,7 @@ private extension JobPhase {
 struct TranscriptWorkspace: View {
     let course: Course
     let groups: [RecordingGroup]
+    let lecture: Lecture?
     @ObservedObject var nav: CourseNavigation
     let onNewNote: () -> Void
 
@@ -211,6 +213,11 @@ struct TranscriptWorkspace: View {
     @State private var renameText = ""
     @State private var deletingNote: NoteFile?
     @State private var errorMessage: String?
+
+    /// Only this lecture's notes; course-wide notes show where no lecture is open.
+    private var notes: [NoteFile] {
+        course.notes.filter { $0.lectureNumber == lecture?.number }
+    }
 
     var body: some View {
         HSplitView {
@@ -222,7 +229,7 @@ struct TranscriptWorkspace: View {
         }
         .onAppear(perform: validateSelection)
         .onChange(of: groups.map(\.baseName)) { validateSelection() }
-        .onChange(of: course.notes) { validateSelection() }
+        .onChange(of: notes) { validateSelection() }
         .alert("Rename Note", isPresented: Binding(get: { renamingNote != nil }, set: { if !$0 { renamingNote = nil } })) {
             TextField("Name", text: $renameText)
             Button("Rename") { rename() }
@@ -250,12 +257,12 @@ struct TranscriptWorkspace: View {
             }
 
             Section {
-                if course.notes.isEmpty {
+                if notes.isEmpty {
                     Text("None yet")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                ForEach(course.notes) { note in
+                ForEach(notes) { note in
                     Label(note.name, systemImage: "note.text")
                         .font(.subheadline)
                         .lineLimit(1)
@@ -308,7 +315,7 @@ struct TranscriptWorkspace: View {
                 emptyDetail
             }
         case .note(let id):
-            if let note = course.notes.first(where: { $0.id == id }) {
+            if let note = notes.first(where: { $0.id == id }) {
                 NoteEditorView(course: course, note: note) { target in
                     nav.open(target, in: course)
                 }
@@ -344,7 +351,7 @@ struct TranscriptWorkspace: View {
         switch nav.barItem {
         case .recording(let baseName) where groups.contains(where: { $0.baseName == baseName }):
             return
-        case .note(let id) where course.notes.contains(where: { $0.id == id }):
+        case .note(let id) where notes.contains(where: { $0.id == id }):
             return
         default:
             nav.barItem = groups.first.map { .recording($0.baseName) }
