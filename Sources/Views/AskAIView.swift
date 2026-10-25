@@ -217,13 +217,13 @@ public struct AskAIView: View {
             }
 
         case .notebookLM:
-            GuideStep(number: 1, title: "Export a study bundle", detail: "Use Export Study Bundle above. NotebookLM accepts Markdown, text and PDF sources, and one bundle uses only one source slot.") {
+            GuideStep(number: 1, title: "Export a study bundle", detail: "Use Export Study Bundle above. Gemini Notebook accepts Markdown, text and PDF sources, and one bundle uses only one source slot.") {
                 EmptyView()
             }
-            GuideStep(number: 2, title: "Create a notebook", detail: "Create a notebook for the course in NotebookLM, then add the bundle and the slide PDFs from the materials folder as sources. Its answers link back to the exact passages in each source. The number of sources per notebook depends on your plan.") {
+            GuideStep(number: 2, title: "Create a notebook", detail: "Create a notebook for the course in Gemini Notebook, then add the bundle and the slide PDFs from the materials folder as sources. Its answers link back to the exact passages in each source. The number of sources per notebook depends on your plan.") {
                 EmptyView()
             }
-            DocsLink(title: "NotebookLM", url: "https://notebooklm.google.com")
+            DocsLink(title: "Gemini Notebook", url: "https://notebooklm.google.com")
 
         case .otherAgents:
             GuideStep(number: 1, title: "Open the folder in any tool that reads AGENTS.md", detail: "AGENTS.md is a shared convention that many coding agents and AI editors read. Open the folder below as the project or workspace, and the agent gets the library layout and citation rules from that file.") {
@@ -302,7 +302,7 @@ enum AIProvider: String, CaseIterable, Identifiable, Hashable {
         case .codex: return "Codex CLI"
         case .chatGPT: return "ChatGPT"
         case .antigravity: return "Antigravity / Gemini CLI"
-        case .notebookLM: return "NotebookLM"
+        case .notebookLM: return "Gemini Notebook"
         case .otherAgents: return "Other AI agents"
         }
     }

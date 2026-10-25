@@ -1,7 +1,7 @@
 import Foundation
 
 /// Combines a course (or the whole library) into a single Markdown file for chat apps that take
-/// uploads rather than folders, such as ChatGPT Projects, claude.ai Projects and NotebookLM.
+/// uploads rather than folders, such as ChatGPT Projects, claude.ai Projects and Gemini Notebook.
 public enum StudyBundleExporter {
     /// Material files whose text is inlined. Other materials (PDF, slides) are only listed,
     /// since they're best uploaded alongside the bundle.
