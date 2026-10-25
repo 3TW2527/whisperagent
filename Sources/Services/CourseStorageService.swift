@@ -385,11 +385,6 @@ public class CourseStorageService: ObservableObject {
         reload()
     }
 
-    /// Saves note text without reloading the library, so typing never rebuilds the UI.
-    public func writeNote(_ note: NoteFile, text: String) throws {
-        try text.write(to: note.url, atomically: true, encoding: .utf8)
-    }
-
     private func noteFileName(_ title: String) -> String {
         let blocked = CharacterSet(charactersIn: "[]#|^")
         let cleaned = sanitizeFileName(title).components(separatedBy: blocked).joined(separator: " ")

@@ -18,6 +18,11 @@ struct WikilinkContext: Equatable {
         files = course.materials.map(\.name) + course.transcripts.map(\.name)
     }
 
+    /// Links between plain Markdown files, e.g. the files of one Markdown Library folder.
+    init(notes: [String]) {
+        self.notes = notes
+    }
+
     var json: String {
         let object: [String: Any] = [
             "notes": notes,

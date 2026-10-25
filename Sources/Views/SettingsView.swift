@@ -1,8 +1,23 @@
 import SwiftUI
 
+enum SettingsTab: String, CaseIterable, Identifiable {
+    case general = "General"
+    case tools = "Tools"
+
+    var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .general: return "gearshape"
+        case .tools: return "puzzlepiece.extension"
+        }
+    }
+}
+
 public struct SettingsView: View {
     @ObservedObject var settings = AppSettings.shared
     @ObservedObject var transcriptionService = WhisperTranscriptionService.shared
+    @State private var tab: SettingsTab = .general
     public var onDismiss: () -> Void
 
     public init(onDismiss: @escaping () -> Void) {
@@ -15,6 +30,15 @@ public struct SettingsView: View {
             HStack {
                 Text("Preferences")
                     .font(.title2.bold())
+                Spacer()
+                Picker("", selection: $tab) {
+                    ForEach(SettingsTab.allCases) { tab in
+                        Label(tab.rawValue, systemImage: tab.icon).tag(tab)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
                 Spacer()
                 Button {
                     onDismiss()
@@ -30,175 +54,11 @@ public struct SettingsView: View {
 
             Divider()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
-                    // Storage Location Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Root Storage Location")
-                            .font(.headline)
-
-                        Text("Each course is a subfolder of this directory (unless you stored it elsewhere in its settings), next to the generated INDEX.md and AGENTS.md files that AI assistants read. Choose a local folder, or an iCloud Drive folder to sync across devices.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack {
-                                    Image(systemName: settings.isUsingiCloud ? "icloud.fill" : "folder.fill")
-                                        .foregroundColor(settings.isUsingiCloud ? .blue : .accentColor)
-                                    Text(settings.rootFolderURL.path)
-                                        .font(.system(.subheadline, design: .monospaced))
-                                        .lineLimit(1)
-                                        .truncationMode(.middle)
-                                }
-
-                                if settings.isUsingiCloud {
-                                    Text("Synced via iCloud Drive")
-                                        .font(.caption2)
-                                        .foregroundColor(.green)
-                                }
-                            }
-
-                            Spacer()
-
-                            Button("Choose Folder...") {
-                                chooseStorageFolder()
-                            }
-
-                            Button("Use iCloud Default") {
-                                settings.setCustomRootDirectory(AppSettings.defaultRootDirectory())
-                                CourseStorageService.shared.reload()
-                            }
-                        }
-                        .padding(12)
-                        .background(Color(NSColor.controlBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-
-                    Divider()
-
-                    // File Ingestion Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Adding Documents (Copy vs Move)")
-                            .font(.headline)
-
-                        Text("Choose whether files dragged into a course are copied or moved from their original location.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
-                        Picker("Default Action:", selection: $settings.fileIngestionAction) {
-                            ForEach(FileIngestionAction.allCases) { action in
-                                Text(action.description).tag(action)
-                            }
-                        }
-                        .pickerStyle(.radioGroup)
-                    }
-
-                    Divider()
-
-                    // Whisper Models Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("Whisper Speech-to-Text Models")
-                                .font(.headline)
-                            Spacer()
-                            Text("Apple Neural Engine Accelerated")
-                                .font(.caption2)
-                                .foregroundColor(.green)
-                        }
-
-                        Text("Models run 100% locally on your Mac using CoreML and Apple Silicon. Select which model to use and manage downloaded model files.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
-                        VStack(spacing: 10) {
-                            ForEach(WhisperModelOption.availableModels) { model in
-                                ModelRowView(
-                                    model: model,
-                                    isSelected: settings.selectedModelVariant == model.id,
-                                    isDownloaded: transcriptionService.isModelDownloaded(model.id),
-                                    isDownloading: transcriptionService.isDownloading && transcriptionService.currentDownloadModel == model.id,
-                                    downloadProgress: transcriptionService.downloadProgress,
-                                    onSelect: {
-                                        settings.selectedModelVariant = model.id
-                                    },
-                                    onDownload: {
-                                        Task {
-                                            try? await transcriptionService.downloadModel(variant: model.id)
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    Divider()
-
-                    // Transcript Output Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Transcript Output")
-                            .font(.headline)
-
-                        Text("Every new transcription is saved in each format you select. Timing data is kept as well, so you can export an existing transcript to another format later from its menu.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
-                        ForEach(TranscriptFormat.allCases) { format in
-                            Toggle(isOn: Binding(
-                                get: { settings.transcriptFormats.contains(format) },
-                                set: { isOn in
-                                    if isOn {
-                                        settings.transcriptFormats.insert(format)
-                                    } else {
-                                        settings.transcriptFormats.remove(format)
-                                    }
-                                }
-                            )) {
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(format.displayName)
-                                    Text(format.description)
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            .toggleStyle(.checkbox)
-                            .disabled(settings.transcriptFormats == [format])
-                        }
-
-                        Stepper(value: $settings.maxConcurrentJobs, in: AppSettings.concurrentJobsRange) {
-                            HStack {
-                                Text("Parallel transcriptions:")
-                                Text("\(settings.maxConcurrentJobs)")
-                                    .font(.system(.body, design: .monospaced).bold())
-                            }
-                        }
-                        Text("How many recordings can be transcribed at the same time. Each one loads its own copy of the model, so large models with several jobs need a lot of memory. Extra jobs wait in a queue.")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Divider()
-
-                    // Silence Detection Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Silence Detection Sensitivity")
-                            .font(.headline)
-
-                        Text("Whisper can hallucinate or fail if recordings begin with long silence. The app automatically scans audio waveforms to detect when human speech begins.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
-                        HStack {
-                            Text("Noise Gate Threshold:")
-                                .font(.subheadline)
-                            Slider(value: $settings.silenceThresholdDB, in: -50...(-20), step: 1)
-                            Text("\(Int(settings.silenceThresholdDB)) dB")
-                                .font(.system(.subheadline, design: .monospaced))
-                                .frame(width: 60, alignment: .trailing)
-                        }
-                    }
-                }
-                .padding(24)
+            switch tab {
+            case .general:
+                generalSettings
+            case .tools:
+                ToolSettingsView()
             }
 
             Divider()
@@ -214,6 +74,198 @@ public struct SettingsView: View {
             .background(Color(NSColor.windowBackgroundColor))
         }
         .frame(minWidth: 600, idealWidth: 680, maxWidth: 800, minHeight: 440, idealHeight: 600, maxHeight: 760)
+    }
+
+    private var generalSettings: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                // Storage Location Section
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Root Storage Location")
+                        .font(.headline)
+
+                    Text("Each course is a subfolder of this directory (unless you stored it elsewhere in its settings), next to the generated INDEX.md and AGENTS.md files that AI assistants read. Choose a local folder, or an iCloud Drive folder to sync across devices.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Image(systemName: settings.isUsingiCloud ? "icloud.fill" : "folder.fill")
+                                    .foregroundColor(settings.isUsingiCloud ? .blue : .accentColor)
+                                Text(settings.rootFolderURL.path)
+                                    .font(.system(.subheadline, design: .monospaced))
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            }
+
+                            if settings.isUsingiCloud {
+                                Text("Synced via iCloud Drive")
+                                    .font(.caption2)
+                                    .foregroundColor(.green)
+                            }
+                        }
+
+                        Spacer()
+
+                        Button("Choose Folder...") {
+                            chooseStorageFolder()
+                        }
+
+                        Button("Use iCloud Default") {
+                            settings.setCustomRootDirectory(AppSettings.defaultRootDirectory())
+                            CourseStorageService.shared.reload()
+                        }
+                    }
+                    .padding(12)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+
+                Divider()
+
+                // Home Screen Section
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Home Screen")
+                        .font(.headline)
+
+                    Stepper(value: $settings.recentLectureCount, in: AppSettings.recentLectureCountRange) {
+                        HStack {
+                            Text("Recent lectures shown:")
+                            Text("\(settings.recentLectureCount)")
+                                .font(.system(.body, design: .monospaced).bold())
+                        }
+                    }
+                    Text("The home screen lists this many of the latest lectures across all courses, newest first. Lectures dated after today aren't listed.")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+
+                Divider()
+
+                // File Ingestion Section
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Adding Documents (Copy vs Move)")
+                        .font(.headline)
+
+                    Text("Choose whether files dragged into a course are copied or moved from their original location.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Picker("Default Action:", selection: $settings.fileIngestionAction) {
+                        ForEach(FileIngestionAction.allCases) { action in
+                            Text(action.description).tag(action)
+                        }
+                    }
+                    .pickerStyle(.radioGroup)
+                }
+
+                Divider()
+
+                // Whisper Models Section
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Whisper Speech-to-Text Models")
+                            .font(.headline)
+                        Spacer()
+                        Text("Apple Neural Engine Accelerated")
+                            .font(.caption2)
+                            .foregroundColor(.green)
+                    }
+
+                    Text("Models run 100% locally on your Mac using CoreML and Apple Silicon. Select which model to use and manage downloaded model files.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    VStack(spacing: 10) {
+                        ForEach(WhisperModelOption.availableModels) { model in
+                            ModelRowView(
+                                model: model,
+                                isSelected: settings.selectedModelVariant == model.id,
+                                isDownloaded: transcriptionService.isModelDownloaded(model.id),
+                                isDownloading: transcriptionService.isDownloading && transcriptionService.currentDownloadModel == model.id,
+                                downloadProgress: transcriptionService.downloadProgress,
+                                onSelect: {
+                                    settings.selectedModelVariant = model.id
+                                },
+                                onDownload: {
+                                    Task {
+                                        try? await transcriptionService.downloadModel(variant: model.id)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Divider()
+
+                // Transcript Output Section
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Transcript Output")
+                        .font(.headline)
+
+                    Text("Every new transcription is saved in each format you select. Timing data is kept as well, so you can export an existing transcript to another format later from its menu.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    ForEach(TranscriptFormat.allCases) { format in
+                        Toggle(isOn: Binding(
+                            get: { settings.transcriptFormats.contains(format) },
+                            set: { isOn in
+                                if isOn {
+                                    settings.transcriptFormats.insert(format)
+                                } else {
+                                    settings.transcriptFormats.remove(format)
+                                }
+                            }
+                        )) {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(format.displayName)
+                                Text(format.description)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .toggleStyle(.checkbox)
+                        .disabled(settings.transcriptFormats == [format])
+                    }
+
+                    Stepper(value: $settings.maxConcurrentJobs, in: AppSettings.concurrentJobsRange) {
+                        HStack {
+                            Text("Parallel transcriptions:")
+                            Text("\(settings.maxConcurrentJobs)")
+                                .font(.system(.body, design: .monospaced).bold())
+                        }
+                    }
+                    Text("How many recordings can be transcribed at the same time. Each one loads its own copy of the model, so large models with several jobs need a lot of memory. Extra jobs wait in a queue.")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+
+                Divider()
+
+                // Silence Detection Section
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Silence Detection Sensitivity")
+                        .font(.headline)
+
+                    Text("Whisper can hallucinate or fail if recordings begin with long silence. The app automatically scans audio waveforms to detect when human speech begins.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    HStack {
+                        Text("Noise Gate Threshold:")
+                            .font(.subheadline)
+                        Slider(value: $settings.silenceThresholdDB, in: -50...(-20), step: 1)
+                        Text("\(Int(settings.silenceThresholdDB)) dB")
+                            .font(.system(.subheadline, design: .monospaced))
+                            .frame(width: 60, alignment: .trailing)
+                    }
+                }
+            }
+            .padding(24)
+        }
     }
 
     private func chooseStorageFolder() {

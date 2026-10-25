@@ -23,13 +23,33 @@ enum NoteViewMode: String, CaseIterable, Identifiable {
     }
 }
 
-/// Markdown note editor with a live preview (LaTeX, wikilinks) and PDF export.
+/// A course note: the shared Markdown editor wired to the course's notes, lectures and files.
 struct NoteEditorView: View {
     let course: Course
     let note: NoteFile
     let onWikilink: (WikilinkTarget) -> Void
 
-    @AppStorage("whisperlectures_note_mode") private var mode: NoteViewMode = .split
+    var body: some View {
+        MarkdownDocumentEditor(
+            fileURL: note.url,
+            title: note.name,
+            linkContext: WikilinkContext(course: course),
+            exportDirectory: course.folderURL,
+            onWikilink: onWikilink
+        )
+    }
+}
+
+/// Markdown editor for any `.md` file, with a live preview (LaTeX, wikilinks), autosave and PDF export.
+/// Used for course notes and for files in the Markdown Library.
+struct MarkdownDocumentEditor: View {
+    let fileURL: URL
+    let title: String
+    let linkContext: WikilinkContext
+    let exportDirectory: URL
+    let onWikilink: (WikilinkTarget) -> Void
+
+    @AppStorage private var mode: NoteViewMode
     @State private var text = ""
     @State private var lastSaved = ""
     @State private var isLoaded = false
@@ -41,7 +61,23 @@ struct NoteEditorView: View {
     @State private var isShowingHelp = false
     @State private var editorController = MarkdownEditorController()
 
-    private var linkContext: WikilinkContext { WikilinkContext(course: course) }
+    /// `modeKey` keeps the edit/split/preview choice separate per place the editor is used.
+    init(
+        fileURL: URL,
+        title: String,
+        linkContext: WikilinkContext,
+        exportDirectory: URL,
+        modeKey: String = "whisperlectures_note_mode",
+        defaultMode: NoteViewMode = .split,
+        onWikilink: @escaping (WikilinkTarget) -> Void
+    ) {
+        self.fileURL = fileURL
+        self.title = title
+        self.linkContext = linkContext
+        self.exportDirectory = exportDirectory
+        self.onWikilink = onWikilink
+        self._mode = AppStorage(wrappedValue: defaultMode, modeKey)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -64,7 +100,7 @@ struct NoteEditorView: View {
     private var toolbar: some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(note.name)
+                Text(title)
                     .font(.headline)
                     .lineLimit(1)
                 if let statusMessage {
@@ -109,8 +145,8 @@ struct NoteEditorView: View {
             .disabled(isExporting)
 
             Menu {
-                Button("Open with Default App") { CourseStorageService.shared.openFile(url: note.url) }
-                Button("Reveal in Finder") { CourseStorageService.shared.revealInFinder(url: note.url) }
+                Button("Open with Default App") { CourseStorageService.shared.openFile(url: fileURL) }
+                Button("Reveal in Finder") { CourseStorageService.shared.revealInFinder(url: fileURL) }
             } label: {
                 Image(systemName: "ellipsis.circle")
             }
@@ -173,7 +209,7 @@ struct NoteEditorView: View {
 
     private func load() {
         guard !isLoaded else { return }
-        text = (try? String(contentsOf: note.url, encoding: .utf8)) ?? ""
+        text = (try? String(contentsOf: fileURL, encoding: .utf8)) ?? ""
         lastSaved = text
         isLoaded = true
     }
@@ -190,10 +226,10 @@ struct NoteEditorView: View {
     private func flush() {
         saveTask?.cancel()
         guard isLoaded, text != lastSaved else { return }
-        // The note may have been renamed or deleted while this view was closing.
-        guard FileManager.default.fileExists(atPath: note.url.path) else { return }
+        // The file may have been renamed or deleted while this view was closing.
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
         do {
-            try CourseStorageService.shared.writeNote(note, text: text)
+            try text.write(to: fileURL, atomically: true, encoding: .utf8)
             lastSaved = text
             savedAt = Date()
             errorMessage = nil
@@ -209,8 +245,8 @@ struct NoteEditorView: View {
         let panel = NSSavePanel()
         panel.title = "Export Note as PDF"
         panel.allowedContentTypes = [.pdf]
-        panel.nameFieldStringValue = "\(note.name).pdf"
-        panel.directoryURL = course.folderURL
+        panel.nameFieldStringValue = "\(title).pdf"
+        panel.directoryURL = exportDirectory
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         isExporting = true

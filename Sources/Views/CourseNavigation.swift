@@ -22,10 +22,14 @@ final class CourseNavigation: ObservableObject {
     @Published var barItem: BarItem?
     @Published var documentID: String?
     @Published var isAddingLecture = false
+    /// Lecture to select when the next course opens. Selecting a course resets navigation, so opening a course
+    /// at a particular lecture (e.g. from the home screen) sets this first and `reset()` applies it.
+    var pendingLectureSelection: LectureSelection?
 
     func reset() {
         sidebarTab = .lectures
-        lectureSelection = nil
+        lectureSelection = pendingLectureSelection
+        pendingLectureSelection = nil
         barItem = nil
         documentID = nil
     }

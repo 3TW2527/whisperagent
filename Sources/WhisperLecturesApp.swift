@@ -11,6 +11,13 @@ struct WhisperLecturesApp: App {
         .windowToolbarStyle(.unified)
         .commands {
             SidebarCommands()
+            CommandGroup(before: .sidebar) {
+                Button("Home") {
+                    NotificationCenter.default.post(name: .goHome, object: nil)
+                }
+                .keyboardShortcut("h", modifiers: [.command, .shift])
+                Divider()
+            }
             CommandGroup(after: .newItem) {
                 Button("New Course...") {
                     NotificationCenter.default.post(name: .createNewCourse, object: nil)
@@ -39,4 +46,5 @@ extension Notification.Name {
     static let createNewCourse = Notification.Name("createNewCourse")
     static let createNewLecture = Notification.Name("createNewLecture")
     static let importAudioRecording = Notification.Name("importAudioRecording")
+    static let goHome = Notification.Name("goHome")
 }

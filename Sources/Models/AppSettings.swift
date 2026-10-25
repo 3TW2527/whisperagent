@@ -61,6 +61,8 @@ public class AppSettings: ObservableObject {
     private let transcriptFormatsKey = "WhisperLectures_TranscriptFormats"
     private let maxConcurrentJobsKey = "WhisperLectures_MaxConcurrentJobs"
     private let externalCoursePathsKey = "WhisperLectures_ExternalCoursePaths"
+    private let recentLectureCountKey = "WhisperLectures_RecentLectureCount"
+    private let markdownFolderPathsKey = "WhisperLectures_MarkdownFolderPaths"
 
     @Published public var rootFolderURL: URL {
         didSet {
@@ -111,7 +113,22 @@ public class AppSettings: ObservableObject {
         }
     }
 
+    /// How many lectures the home screen lists under Recent Lectures.
+    @Published public var recentLectureCount: Int {
+        didSet {
+            UserDefaults.standard.set(recentLectureCount, forKey: recentLectureCountKey)
+        }
+    }
+
+    /// Folders the Markdown Library tool reads, in the order they were added.
+    @Published public var markdownFolderPaths: [String] {
+        didSet {
+            UserDefaults.standard.set(markdownFolderPaths, forKey: markdownFolderPathsKey)
+        }
+    }
+
     public static let concurrentJobsRange = 1...4
+    public static let recentLectureCountRange = 3...50
 
     /// Formats in a stable display order.
     public var orderedTranscriptFormats: [TranscriptFormat] {
@@ -138,6 +155,11 @@ public class AppSettings: ObservableObject {
         self.maxConcurrentJobs = Self.concurrentJobsRange.contains(savedJobs) ? savedJobs : 2
 
         self.externalCoursePaths = UserDefaults.standard.stringArray(forKey: externalCoursePathsKey) ?? []
+
+        let savedRecent = UserDefaults.standard.integer(forKey: recentLectureCountKey)
+        self.recentLectureCount = Self.recentLectureCountRange.contains(savedRecent) ? savedRecent : 8
+
+        self.markdownFolderPaths = UserDefaults.standard.stringArray(forKey: markdownFolderPathsKey) ?? []
 
         // Load Model
         let savedModel = UserDefaults.standard.string(forKey: selectedModelKey) ?? "openai_whisper-base"

@@ -35,6 +35,8 @@ public struct MainView: View {
     @State private var searchText = ""
     @State private var selectedTags: Set<String> = []
     @State private var activeSheet: ActiveSheet?
+    /// The home-screen tool open in the main area while no course is selected. Nil shows the home screen.
+    @State private var openToolID: String?
     @State private var errorMessage: String?
     /// Audio files waiting for the trimmer, shown one after another.
     @State private var audioQueue: [PendingAudio] = []
@@ -82,11 +84,24 @@ public struct MainView: View {
                         }
                     )
                     .id(course.id)
+                } else if let tool = openToolID.flatMap(HomeTool.tool(id:)) {
+                    HomeToolPage(tool: tool, onHome: goHome)
                 } else {
-                    emptyState
+                    HomeView(
+                        onOpenLecture: openLecture,
+                        onOpenTool: { openToolID = $0.id },
+                        onNewCourse: { activeSheet = .newCourse }
+                    )
                 }
             }
             .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    Button(action: goHome) {
+                        Label("Home", systemImage: "house")
+                    }
+                    .disabled(isHome)
+                    .help("Home: recent lectures and tools (⇧⌘H)")
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         activeSheet = .askAI(courseID: storage.selectedCourseID)
@@ -122,6 +137,9 @@ public struct MainView: View {
         .onReceive(NotificationCenter.default.publisher(for: .createNewCourse)) { _ in
             activeSheet = .newCourse
         }
+        .onReceive(NotificationCenter.default.publisher(for: .goHome)) { _ in
+            goHome()
+        }
         .onChange(of: storage.selectedCourseID) {
             nav.reset()
         }
@@ -147,7 +165,7 @@ public struct MainView: View {
                 CourseSidebarView(
                     course: course,
                     nav: nav,
-                    onBack: { storage.selectedCourseID = nil },
+                    onBack: goHome,
                     onEditCourse: { activeSheet = .editCourse(courseID: course.id) }
                 )
                 sidebarFooter
@@ -255,13 +273,24 @@ public struct MainView: View {
 
                 Spacer()
 
-                HStack(spacing: 4) {
-                    Image(systemName: settings.isUsingiCloud ? "icloud.fill" : "folder.fill")
-                        .foregroundColor(settings.isUsingiCloud ? .blue : .secondary)
-                    Text(settings.isUsingiCloud ? "iCloud Drive" : "Local")
-                        .foregroundColor(.secondary)
+                Button {
+                    NSWorkspace.shared.open(settings.rootFolderURL)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: settings.isUsingiCloud ? "icloud.fill" : "folder.fill")
+                            .foregroundColor(settings.isUsingiCloud ? .blue : .secondary)
+                        Text(settings.isUsingiCloud ? "iCloud Drive" : "Local")
+                            .foregroundColor(.secondary)
+                        Image(systemName: "arrow.up.forward")
+                            .foregroundColor(.secondary)
+                    }
+                    .font(.caption2)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Color.primary.opacity(0.06)))
                 }
-                .font(.caption2)
+                .buttonStyle(.plain)
+                .help("Open the library folder in Finder: \(settings.rootFolderURL.path)")
             }
             .padding(10)
             .background(Color(NSColor.controlBackgroundColor))
@@ -289,27 +318,20 @@ public struct MainView: View {
         }
     }
 
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "books.vertical")
-                .font(.system(size: 56))
-                .foregroundColor(.secondary.opacity(0.5))
+    // MARK: - Home
 
-            Text(storage.courses.isEmpty ? "Create Your First Course" : "No Course Selected")
-                .font(.title2.bold())
+    private var isHome: Bool {
+        storage.selectedCourseID == nil && openToolID == nil
+    }
 
-            Text("Each course holds numbered lectures with their transcripts, plus shared materials like slides and readings. The folder is laid out so AI assistants can read it.")
-                .font(.callout)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 420)
+    private func goHome() {
+        storage.selectedCourseID = nil
+        openToolID = nil
+    }
 
-            Button("New Course") {
-                activeSheet = .newCourse
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    private func openLecture(_ course: Course, number: Int) {
+        nav.pendingLectureSelection = .lecture(number)
+        storage.selectedCourseID = course.id
     }
 
     // MARK: - Audio Queue
