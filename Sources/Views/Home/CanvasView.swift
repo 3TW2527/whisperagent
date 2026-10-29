@@ -51,7 +51,7 @@ struct CanvasView: View {
             }
         }
         .task {
-            if canvas.isConfigured { await canvas.sync() }
+            if canvas.isConfigured && settings.canvasSyncMinutes != AppSettings.canvasManualSync { await canvas.sync() }
         }
     }
 

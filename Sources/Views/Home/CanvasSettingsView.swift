@@ -113,16 +113,26 @@ struct CanvasSettingsView: View {
                 .font(.subheadline.bold())
             Picker("Check for new files", selection: $settings.canvasSyncMinutes) {
                 ForEach(AppSettings.canvasSyncChoices, id: \.self) { minutes in
-                    Text(minutes == 0 ? "Only when the tool opens" : "Every \(minutes) minutes").tag(minutes)
+                    Text(syncChoiceName(minutes)).tag(minutes)
                 }
             }
             .fixedSize()
             .onChange(of: settings.canvasSyncMinutes) {
                 canvas.startAutoSync()
             }
-            Text("The app also syncs each time you open the Canvas tool.")
+            Text(settings.canvasSyncMinutes == AppSettings.canvasManualSync
+                 ? "Canvas is only checked when you press the refresh button in the Canvas tool."
+                 : "The app also syncs each time you open the Canvas tool.")
                 .font(.caption)
                 .foregroundColor(.secondary)
+        }
+    }
+
+    private func syncChoiceName(_ minutes: Int) -> String {
+        switch minutes {
+        case AppSettings.canvasManualSync: return "Manually"
+        case 0: return "Only when the tool opens"
+        default: return "Every \(minutes) minutes"
         }
     }
 }

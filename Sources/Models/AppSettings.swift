@@ -137,7 +137,8 @@ public class AppSettings: ObservableObject {
         }
     }
 
-    /// How often Canvas is synced while the app is open, in minutes. 0 syncs only when asked.
+    /// How often Canvas is synced while the app is open, in minutes. 0 syncs only when the Canvas tool opens,
+    /// and `canvasManualSync` only when the refresh button is pressed.
     @Published public var canvasSyncMinutes: Int {
         didSet {
             UserDefaults.standard.set(canvasSyncMinutes, forKey: canvasSyncMinutesKey)
@@ -152,7 +153,8 @@ public class AppSettings: ObservableObject {
     }
 
     public static let concurrentJobsRange = 1...4
-    public static let canvasSyncChoices = [0, 15, 30, 60]
+    public static let canvasManualSync = -1
+    public static let canvasSyncChoices = [canvasManualSync, 0, 15, 30, 60]
     public static let recentLectureCountRange = 3...50
 
     /// Formats in a stable display order.
