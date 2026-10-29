@@ -66,6 +66,8 @@ public class AppSettings: ObservableObject {
     private let canvasAddressKey = "WhisperLectures_CanvasAddress"
     private let canvasSyncMinutesKey = "WhisperLectures_CanvasSyncMinutes"
     private let canvasHiddenCourseIDsKey = "WhisperLectures_CanvasHiddenCourseIDs"
+    private let phoneNotepadAutoOffKey = "WhisperLectures_PhoneNotepadAutoOff"
+    private let phoneNotepadKeepAwakeKey = "WhisperLectures_PhoneNotepadKeepAwake"
 
     @Published public var rootFolderURL: URL {
         didSet {
@@ -152,7 +154,22 @@ public class AppSettings: ObservableObject {
         }
     }
 
+    /// Minutes without a request from the phone before the phone notepad turns itself off. 0 never does.
+    @Published public var phoneNotepadAutoOffMinutes: Int {
+        didSet {
+            UserDefaults.standard.set(phoneNotepadAutoOffMinutes, forKey: phoneNotepadAutoOffKey)
+        }
+    }
+
+    /// Keeps the Mac from going to sleep on its own while the phone notepad is on.
+    @Published public var phoneNotepadKeepsMacAwake: Bool {
+        didSet {
+            UserDefaults.standard.set(phoneNotepadKeepsMacAwake, forKey: phoneNotepadKeepAwakeKey)
+        }
+    }
+
     public static let concurrentJobsRange = 1...4
+    public static let phoneNotepadAutoOffChoices = [15, 30, 60, 120, 240, 0]
     public static let canvasManualSync = -1
     public static let canvasSyncChoices = [canvasManualSync, 0, 15, 30, 60]
     public static let recentLectureCountRange = 3...50
@@ -192,6 +209,10 @@ public class AppSettings: ObservableObject {
         let savedSync = UserDefaults.standard.integer(forKey: canvasSyncMinutesKey)
         self.canvasSyncMinutes = Self.canvasSyncChoices.contains(savedSync) ? savedSync : 0
         self.canvasHiddenCourseIDs = UserDefaults.standard.array(forKey: canvasHiddenCourseIDsKey) as? [Int] ?? []
+
+        let savedAutoOff = UserDefaults.standard.object(forKey: phoneNotepadAutoOffKey) as? Int
+        self.phoneNotepadAutoOffMinutes = savedAutoOff.flatMap { Self.phoneNotepadAutoOffChoices.contains($0) ? $0 : nil } ?? 60
+        self.phoneNotepadKeepsMacAwake = UserDefaults.standard.object(forKey: phoneNotepadKeepAwakeKey) as? Bool ?? true
 
         // Load Model
         let savedModel = UserDefaults.standard.string(forKey: selectedModelKey) ?? "openai_whisper-base"

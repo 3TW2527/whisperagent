@@ -18,8 +18,10 @@ struct NoteHelpView: View {
 
     private var linkOptions: [LinkOption] {
         let notes = context.notes.map { LinkOption(id: "n-\($0)", label: $0, icon: "note.text", link: "[[\($0)]]") }
-        let lectures = context.lectures.map {
-            LinkOption(id: "l-\($0.number)", label: $0.title.isEmpty ? "Lecture \($0.number)" : "Lecture \($0.number): \($0.title)", icon: "list.number", link: "[[Lecture \($0.number)]]")
+        let unit = context.unitName
+        let lectures = context.lectures.map { lecture in
+            let name = lecture.title.isEmpty ? lecture.seriesTitle : lecture.title
+            return LinkOption(id: "l-\(lecture.number)", label: name.map { "\(unit) \(lecture.number): \($0)" } ?? "\(unit) \(lecture.number)", icon: "list.number", link: "[[\(unit) \(lecture.number)]]")
         }
         let files = context.files.map { LinkOption(id: "f-\($0)", label: $0, icon: "doc", link: "[[\($0)]]") }
         let all = notes + lectures + files
@@ -57,7 +59,7 @@ struct NoteHelpView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Wikilinks")
                         .font(.headline)
-                    Text("[[Note name]] links to another note, [[Lecture 3]] to a lecture, and [[file name]] to a document. Use [[Note|shown text]] to show different text. Click a link in the preview to open it. Links to something that doesn't exist yet are orange; clicking one creates that note.")
+                    Text("[[Note name]] links to another note, [[\(context.unitName) 3]] to a \(context.unitName.lowercased()), and [[file name]] to a document. Use [[Note|shown text]] to show different text. Click a link in the preview to open it. Links to something that doesn't exist yet are orange; clicking one creates that note.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -79,7 +81,7 @@ struct NoteHelpView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Insert a wikilink")
                 .font(.headline)
-            TextField("Search notes, lectures, documents", text: $search)
+            TextField("Search notes, \(context.unitName.lowercased())s, documents", text: $search)
                 .textFieldStyle(.roundedBorder)
             if !canInsertAtCursor {
                 Text("Switch to Edit or Side by side to insert at the cursor. Links are added to the end of the note.")

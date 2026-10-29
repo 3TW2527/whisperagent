@@ -19,12 +19,12 @@ struct WhisperLecturesApp: App {
                 Divider()
             }
             CommandGroup(after: .newItem) {
-                Button("New Course...") {
+                Button("New Course or Project...") {
                     NotificationCenter.default.post(name: .createNewCourse, object: nil)
                 }
                 .keyboardShortcut("n", modifiers: [.command])
 
-                Button("New Lecture...") {
+                Button("New Lecture or Meeting...") {
                     NotificationCenter.default.post(name: .createNewLecture, object: nil)
                 }
                 .keyboardShortcut("n", modifiers: [.command, .shift])

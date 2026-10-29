@@ -125,13 +125,16 @@
     const t = target.trim().toLowerCase();
     const note = context.notes.find(n => n.toLowerCase() === t);
     if (note) return { kind: "note", value: note };
+    const unit = context.unit || "lecture";
+    const letter = context.letter || "l";
     for (const l of context.lectures) {
       const names = [
-        "lecture " + l.number,
-        "l" + String(l.number).padStart(2, "0"),
-        "l" + l.number,
-        "lecture " + l.number + ": " + l.title,
-        l.title
+        unit + " " + l.number,
+        letter + String(l.number).padStart(2, "0"),
+        letter + l.number,
+        unit + " " + l.number + ": " + l.title,
+        l.title,
+        l.seriesTitle || ""
       ].filter(n => n.trim()).map(n => n.toLowerCase());
       if (names.includes(t)) return { kind: "lecture", value: String(l.number) };
     }

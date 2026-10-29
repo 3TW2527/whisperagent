@@ -20,19 +20,20 @@ public enum StudyBundleExporter {
 
     static func courseSection(_ course: Course) -> String {
         var lines: [String] = []
-        lines.append("# Course: \(course.displayName)")
+        lines.append("# \(course.kind.displayName): \(course.displayName)")
         lines.append("")
         if !course.tags.isEmpty {
             lines.append("Tags: \(course.tags.joined(separator: ", "))")
             lines.append("")
         }
-        lines.append("This file bundles every lecture transcript of the course. Transcripts are automatic and may mishear names, terms and numbers. Paragraphs start with `[mm:ss]` (or `[h:mm:ss]`) timestamps measured from the start of each recording. Cite answers as `L<lecture> [mm:ss]`.")
+        let unit = course.kind.unitName.lowercased()
+        lines.append("This file bundles every \(unit) transcript of the \(course.kind.displayName.lowercased()). Transcripts are automatic and may mishear names, terms and numbers. Paragraphs start with `[mm:ss]` (or `[h:mm:ss]`) timestamps measured from the start of each recording. Cite answers as `\(course.kind.unitLetter)<\(unit)> [mm:ss]`.")
         lines.append("")
 
-        lines.append("## Lecture List")
+        lines.append("## \(course.kind.unitName) List")
         lines.append("")
         for lecture in course.lectures {
-            lines.append("- \(lecture.label): \(lecture.title.isEmpty ? "(untitled)" : lecture.title) — \(DateFormats.isoMinute.string(from: lecture.date))")
+            lines.append("- \(lecture.label): \(lecture.title.isEmpty && lecture.series == nil ? "(untitled)" : lecture.shortTitle) — \(DateFormats.isoMinute.string(from: lecture.date))")
         }
         lines.append("")
 

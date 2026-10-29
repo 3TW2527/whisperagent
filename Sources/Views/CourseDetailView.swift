@@ -37,16 +37,19 @@ public struct CourseDetailView: View {
                 )
             case .documents:
                 DocumentPane(course: course, nav: nav)
+            case .files:
+                ProjectFilePane(course: course, nav: nav)
             }
         }
         .sheet(isPresented: $nav.isAddingLecture) {
-            LectureEditorSheet(course: course, onSaved: { created in
+            LectureEditorSheet(course: course, initialSeries: nav.newLectureSeries, onSaved: { created in
                 if let created {
                     nav.lectureSelection = .lecture(created.number)
                     nav.sidebarTab = .lectures
                 }
             }, onDismiss: {
                 nav.isAddingLecture = false
+                nav.newLectureSeries = nil
             })
         }
         .onAppear(perform: validateSelections)
@@ -69,6 +72,8 @@ public struct CourseDetailView: View {
             break
         case .unassigned where !course.unassignedRecordingGroups.isEmpty:
             break
+        case .actions where course.isProject:
+            break
         default:
             if let latest = course.lectures.last {
                 nav.lectureSelection = .lecture(latest.number)
@@ -82,6 +87,9 @@ public struct CourseDetailView: View {
         if nav.documentID == nil || !course.materials.contains(where: { $0.id == nav.documentID }) {
             nav.documentID = course.materials.first?.id
         }
+        if !CourseNavigation.SidebarTab.tabs(for: course.kind).contains(nav.sidebarTab) {
+            nav.sidebarTab = .lectures
+        }
     }
 
     private var audioDropBar: some View {
@@ -89,7 +97,7 @@ public struct CourseDetailView: View {
             Image(systemName: "waveform")
                 .foregroundColor(isAudioDropTargeted ? .accentColor : .secondary)
 
-            Text("Drop audio here to transcribe it. Other files are added to Documents.")
+            Text(dropHint)
                 .font(.caption)
                 .foregroundColor(isAudioDropTargeted ? .accentColor : .secondary)
                 .lineLimit(1)
@@ -118,6 +126,20 @@ public struct CourseDetailView: View {
         }
     }
 
+    /// Where a dropped file that isn't audio goes: the open meeting's folder in a project, else the materials.
+    private var dropMeetingNumber: Int? {
+        course.isProject && nav.sidebarTab == .lectures ? selectedLectureNumber : nil
+    }
+
+    private var dropHint: String {
+        if let number = dropMeetingNumber {
+            return "Drop audio here to transcribe it. Other files are added to \(Lecture.label(number: number, kind: .project))'s files."
+        }
+        return course.isProject
+            ? "Drop audio here to transcribe it. Other files are added to the project's materials."
+            : "Drop audio here to transcribe it. Other files are added to Documents."
+    }
+
     private func promptForAudio(lectureNumber: Int?) {
         VoiceMemosService.shared.promptForAudioFile { url in
             if let url {
@@ -128,6 +150,7 @@ public struct CourseDetailView: View {
 
     private func handleDroppedFiles(_ providers: [NSItemProvider]) {
         let lecture = selectedLectureNumber
+        let meeting = dropMeetingNumber
         for provider in providers {
             _ = provider.loadObject(ofClass: URL.self) { url, _ in
                 guard let url else { return }
@@ -135,7 +158,7 @@ public struct CourseDetailView: View {
                     if VoiceMemosService.shared.isAudioFile(url: url) {
                         onSelectAudio(url, lecture)
                     } else {
-                        _ = try? CourseStorageService.shared.ingestMaterial(from: url, courseID: course.id)
+                        _ = try? CourseStorageService.shared.ingestMaterial(from: url, courseID: course.id, meetingNumber: meeting)
                     }
                 }
             }

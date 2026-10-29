@@ -1,8 +1,9 @@
 import Foundation
 
 /// Writes the Markdown files that let an LLM (or a person) understand the library without opening
-/// every file: a root `INDEX.md`, one `COURSE.md` per course, and agent instruction files
-/// (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`) that coding/CLI agents pick up automatically.
+/// every file: a root `INDEX.md`, one `COURSE.md` per course or `PROJECT.md` per project, and agent
+/// instruction files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`) that coding/CLI agents pick up automatically.
+/// A project stored outside the library gets its own agent files, since it's often opened on its own.
 ///
 /// Generated files start with a marker line. A file whose marker was removed is treated as
 /// user-owned and never overwritten. Files are only rewritten when their content changes.
@@ -18,7 +19,23 @@ public enum LibraryIndexGenerator {
             write(guide, to: rootURL.appendingPathComponent(name))
         }
         for course in courses {
-            write(courseMarkdown(course), to: course.folderURL.appendingPathComponent(Course.overviewFileName))
+            regenerate(course: course)
+        }
+    }
+
+    /// The generated files inside one course or project folder.
+    public static func regenerate(course: Course) {
+        if course.isProject {
+            write(projectMarkdown(course), to: course.folderURL.appendingPathComponent(course.overviewFileName))
+            write(actionsMarkdown(course), to: course.folderURL.appendingPathComponent(Course.actionsFileName))
+            if course.isExternal {
+                let projectGuide = projectAgentGuideMarkdown(course)
+                for name in agentFileNames {
+                    write(projectGuide, to: course.folderURL.appendingPathComponent(name))
+                }
+            }
+        } else {
+            write(courseMarkdown(course), to: course.folderURL.appendingPathComponent(course.overviewFileName))
         }
     }
 
@@ -26,25 +43,26 @@ public enum LibraryIndexGenerator {
 
     public static func indexMarkdown(courses: [Course]) -> String {
         var lines = [marker, "", "# Study Library Index", ""]
-        lines.append("Each course is a folder. Open its `COURSE.md` for the lecture list, transcripts and materials. See `AGENTS.md` for how the library is organised.")
+        lines.append("Each course is a folder. Open its `COURSE.md` for the lecture list, transcripts and materials. A project's `PROJECT.md` lists its meetings, key dates and files. See `AGENTS.md` for how the library is organised.")
         lines.append("")
 
+        let plainCourses = courses.filter { !$0.isProject }
+        let projects = courses.filter(\.isProject)
         lines.append("## Courses")
         lines.append("")
-        if courses.isEmpty {
+        if plainCourses.isEmpty {
             lines.append("_No courses yet._")
         } else {
-            lines.append("| Course | Code | Tags | Lectures | Recordings | Latest lecture | Overview |")
-            lines.append("|---|---|---|---|---|---|---|")
-            for course in courses {
-                let latest = course.lectures.map(\.date).max().map { DateFormats.isoDay.string(from: $0) } ?? "—"
-                let recordings = course.lectures.reduce(0) { $0 + course.recordingGroups(for: $1).count }
-                // Courses stored outside the library can't be linked relatively.
-                let folder = course.isExternal ? course.folderURL.path : course.folderURL.lastPathComponent
-                lines.append("| \(cell(course.name)) | \(cell(course.metadata.code)) | \(cell(course.tags.joined(separator: ", "))) | \(course.lectures.count) | \(recordings) | \(latest) | \(link(folder + "/" + Course.overviewFileName, to: folder + "/" + Course.overviewFileName)) |")
-            }
+            lines.append(contentsOf: overviewTable(plainCourses))
         }
         lines.append("")
+
+        if !projects.isEmpty {
+            lines.append("## Projects")
+            lines.append("")
+            lines.append(contentsOf: overviewTable(projects))
+            lines.append("")
+        }
 
         var byTag: [String: [String]] = [:]
         for course in courses {
@@ -61,6 +79,20 @@ public enum LibraryIndexGenerator {
             lines.append("")
         }
         return lines.joined(separator: "\n")
+    }
+
+    private static func overviewTable(_ courses: [Course]) -> [String] {
+        let unit = courses.first?.kind.unitPlural ?? "Lectures"
+        var lines = ["| Name | Code | Tags | \(unit) | Recordings | Latest | Overview |", "|---|---|---|---|---|---|---|"]
+        for course in courses {
+            let latest = course.lectures.map(\.date).max().map { DateFormats.isoDay.string(from: $0) } ?? "—"
+            let recordings = course.lectures.reduce(0) { $0 + course.recordingGroups(for: $1).count }
+            // Courses stored outside the library can't be linked relatively.
+            let folder = course.isExternal ? course.folderURL.path : course.folderURL.lastPathComponent
+            let overview = folder + "/" + course.overviewFileName
+            lines.append("| \(cell(course.name)) | \(cell(course.metadata.code)) | \(cell(course.tags.joined(separator: ", "))) | \(course.lectures.count) | \(recordings) | \(latest) | \(link(overview, to: overview)) |")
+        }
+        return lines
     }
 
     // MARK: - COURSE.md
@@ -136,6 +168,145 @@ public enum LibraryIndexGenerator {
         return lines.joined(separator: "\n")
     }
 
+    // MARK: - PROJECT.md
+
+    public static func projectMarkdown(_ course: Course) -> String {
+        var lines = [marker, ""]
+        lines.append("# \(course.displayName)")
+        lines.append("")
+        lines.append("A project: recurring meetings with transcripts and notes, reference materials, and the student's own work.")
+        lines.append("")
+        if !course.metadata.code.isEmpty {
+            lines.append("- **Code**: \(course.metadata.code)")
+        }
+        if !course.tags.isEmpty {
+            lines.append("- **Tags**: \(course.tags.joined(separator: ", "))")
+        }
+        lines.append("- **Meetings**: \(course.lectures.count)")
+        lines.append("- **Materials**: \(course.materials.count) file\(course.materials.count == 1 ? "" : "s") in `\(Course.materialsFolderName)/` (reference material for the whole project)")
+        lines.append("- **Actions**: see \(link(Course.actionsFileName, to: Course.actionsFileName))")
+        lines.append("")
+
+        let keyDates = course.metadata.keyDates
+        if !keyDates.isEmpty {
+            lines.append("## Key Dates")
+            lines.append("")
+            for item in keyDates {
+                lines.append("- \(DateFormats.isoDay.string(from: item.date)): \(item.title)")
+            }
+            lines.append("")
+        }
+
+        if !course.metadata.series.isEmpty {
+            lines.append("## Meeting Series")
+            lines.append("")
+            for series in course.metadata.series {
+                let count = course.lectures.filter { $0.series == series.name }.count
+                let schedule = series.englishScheduleDescription.map { ", usually \($0)" } ?? ""
+                lines.append("- **\(series.name)**: \(count) meeting\(count == 1 ? "" : "s")\(schedule)")
+            }
+            lines.append("")
+        }
+
+        lines.append("## Meetings")
+        lines.append("")
+        if course.lectures.isEmpty {
+            lines.append("_No meetings yet._")
+        } else {
+            lines.append("| Meeting | Series | Title | Date | Transcripts | Notes | Files |")
+            lines.append("|---|---|---|---|---|---|---|")
+            for lecture in course.lectures {
+                let transcripts = course.recordingGroups(for: lecture).compactMap { group -> String? in
+                    group.primaryFile.map { link(group.baseName, to: "\(Course.transcriptsFolderName)/\($0.name)") }
+                }
+                let notes = course.notes(for: lecture).map { link($0.name, to: "\(Course.notesFolderName)/\($0.url.lastPathComponent)") }
+                let files = course.files(forMeeting: lecture.number)
+                let folder = "\(Course.meetingsFolderName)/\(lecture.label)/"
+                let filesCell = files.isEmpty ? "—" : "\(link(folder, to: folder)) (\(files.count))"
+                let transcriptsCell = transcripts.isEmpty ? "—" : transcripts.joined(separator: "<br>")
+                let notesCell = notes.isEmpty ? "—" : notes.joined(separator: "<br>")
+                lines.append("| \(lecture.label) | \(cell(lecture.series ?? "")) | \(cell(lecture.shortTitle)) | \(DateFormats.isoMinute.string(from: lecture.date)) | \(transcriptsCell) | \(notesCell) | \(filesCell) |")
+            }
+        }
+        lines.append("")
+
+        lines.append("## Materials")
+        lines.append("")
+        if course.materials.isEmpty {
+            lines.append("_No project materials yet._")
+        } else {
+            for file in course.materials {
+                lines.append("- \(link(file.name, to: "\(Course.materialsFolderName)/\(file.name)"))")
+            }
+        }
+        lines.append("")
+
+        let own = ProjectFiles.topLevelItems(of: course)
+        if !own.isEmpty {
+            lines.append("## The Student's Own Files")
+            lines.append("")
+            lines.append("Work the student made for the project, kept in their own folders.")
+            lines.append("")
+            for item in own {
+                let name = item.isDirectory ? item.name + "/" : item.name
+                lines.append("- \(link(name, to: name))")
+            }
+            lines.append("")
+        }
+
+        let general = course.notes(for: nil)
+        if !general.isEmpty {
+            lines.append("## Project Notes")
+            lines.append("")
+            for note in general {
+                lines.append("- \(link(note.name, to: "\(Course.notesFolderName)/\(note.url.lastPathComponent)"))")
+            }
+            lines.append("")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    // MARK: - ACTIONS.md
+
+    public static func actionsMarkdown(_ course: Course) -> String {
+        let open = course.actions.filter { !$0.isDone }
+            .sorted { a, b in
+                // Due dates first, soonest first; then the newest meeting first.
+                switch (a.due, b.due) {
+                case let (x?, y?) where x != y: return x < y
+                case (_?, nil): return true
+                case (nil, _?): return false
+                default: return (a.meetingNumber ?? 0) > (b.meetingNumber ?? 0)
+                }
+            }
+        let done = course.actions.filter(\.isDone).sorted { ($0.meetingNumber ?? 0) > ($1.meetingNumber ?? 0) }
+
+        var lines = [marker, ""]
+        lines.append("# Actions: \(course.displayName)")
+        lines.append("")
+        lines.append("\(open.count) open, \(done.count) done. Taken from `- [ ]` checkboxes in the notes; tick them in the app or in the note itself. `due:YYYY-MM-DD` sets a due date.")
+        lines.append("")
+        lines.append("## Open")
+        lines.append("")
+        if open.isEmpty { lines.append("_Nothing open._") }
+        lines.append(contentsOf: open.map { actionLine($0, course: course) })
+        lines.append("")
+        if !done.isEmpty {
+            lines.append("## Done")
+            lines.append("")
+            lines.append(contentsOf: done.map { actionLine($0, course: course) })
+            lines.append("")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private static func actionLine(_ item: ActionItem, course: Course) -> String {
+        var line = "- [\(item.isDone ? "x" : " ")] \(item.text)"
+        if let due = item.due { line += " — due \(DateFormats.isoDay.string(from: due))" }
+        line += " · " + link(item.noteName, to: "\(Course.notesFolderName)/\(item.noteURL.lastPathComponent)")
+        return line
+    }
+
     // MARK: - AGENTS.md / CLAUDE.md / GEMINI.md
 
     public static func agentGuideMarkdown() -> String {
@@ -162,6 +333,7 @@ public enum LibraryIndexGenerator {
           .whisperlectures/            App data. Ignore.
         ```
 
+        - A **project** folder (with `PROJECT.md` instead of `COURSE.md`) holds meetings instead of lectures: `M03` is meeting 3, transcripts are named `<Project>_M03_R1.md`, `meetings/M03/` holds files from that meeting, `ACTIONS.md` lists the student's open and done actions, and other folders are the student's own work. Meetings can belong to a series such as "Team" or "Client".
         - Lecture numbers are zero-padded: `L03` is lecture 3. A lecture can have several recordings (`R1`, `R2`, ...), for example when a recording was split in two. Read all recordings of a lecture in order.
         - Each Markdown transcript begins with a YAML header: `course`, `course_code`, `lecture`, `lecture_title`, `lecture_date`, `recording`, `source_audio`, `model`, `transcribed_at`, `duration`.
         - Paragraphs in transcripts start with a `[mm:ss]` timestamp (`[h:mm:ss]` past one hour) measured from the start of that recording.
@@ -184,6 +356,56 @@ public enum LibraryIndexGenerator {
         - "What did the lecturer say about <topic>? Quote the transcript and cite it."
         - "Write 10 exam-style questions from <course>, with answers and sources."
         - "Which of my courses tagged <tag> cover <topic>?"
+
+        """
+    }
+
+    /// The guide written into a project kept outside the library, where the project folder is the root.
+    public static func projectAgentGuideMarkdown(_ course: Course) -> String {
+        """
+        \(marker)
+
+        # \(course.name): Guide for AI Assistants
+
+        This folder is a student's project, organised by WhisperLectures. It holds transcripts and notes of recurring project meetings, reference materials, and the student's own work. Use it to answer questions about the project, recall what was decided in meetings, track actions and deadlines, and help with the student's own documents.
+
+        ## Layout
+
+        ```
+        PROJECT.md                     Meetings (number, series, title, date, transcripts, notes, files), key dates, materials. Start here.
+        ACTIONS.md                     The student's open and done actions, taken from `- [ ]` checkboxes in their notes.
+        course.json                    The same data in machine-readable form.
+        materials/                     Reference material for the whole project.
+        meetings/
+          M03/                         Files from meeting 3: slides shown, photos of whiteboards, handouts.
+        notes/                         The student's own Markdown notes. `M03 ...` notes belong to meeting 3.
+        transcripts/
+          <Project>_M03_R1.md          Transcript of meeting 3, recording 1 (preferred for reading).
+        .whisperlectures/              App data. Ignore.
+        <any other folder>             The student's own work for the project, e.g. analyses, spreadsheets, drafts.
+        ```
+
+        - Meeting numbers are zero-padded: `M03` is meeting 3. A meeting can have several recordings (`R1`, `R2`, ...); read them in order.
+        - Meetings can belong to a series, such as a weekly team meeting and smaller sub-team meetings. `PROJECT.md` shows each meeting's series.
+        - Transcripts begin with a YAML header (`course`, `meeting`, `meeting_title`, `series`, `meeting_date`, `recording`, ...). Paragraphs start with a `[mm:ss]` timestamp from the start of that recording.
+        - Actions are Markdown checkboxes in notes: `- [ ]` open, `- [x]` done, optionally with `due:YYYY-MM-DD`.
+        - Dates use the format `YYYY-MM-DD HH:MM`, in local time.
+
+        ## How to Answer
+
+        1. Read `PROJECT.md` first, then only the transcripts, notes and files you need. Search `transcripts/` and `notes/` (for example with grep) for broad questions.
+        2. Cite meetings as `M<n> [mm:ss]` for transcripts, or by file name for notes and documents.
+        3. Transcripts are automatic speech recognition and may mishear names, technical terms and numbers. Check them against notes and slides, and say when something is uncertain.
+        4. The student's notes record what they decided to do; prefer them over the transcript for their own actions.
+        5. Don't edit, rename or delete files unless the student asks. `PROJECT.md`, `ACTIONS.md` and this file are regenerated by the app.
+        6. To record a new action for the student, add a `- [ ] ...` line to the relevant meeting's note.
+
+        ## Useful Requests
+
+        - "What did we decide in the last team meeting? Cite the transcript."
+        - "List my open actions due before the next meeting."
+        - "Summarise every meeting in one series so far, with what changed each week."
+        - "Draft the slides I need for the next meeting from my notes and actions."
 
         """
     }

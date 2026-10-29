@@ -20,7 +20,7 @@ struct HomeTool: Identifiable {
 
     /// Every tool, in the order the home screen shows them.
     static var all: [HomeTool] {
-        [.canvas, .markdownLibrary]
+        [.canvas, .markdownLibrary, .phoneNotepad]
     }
 
     static func tool(id: String) -> HomeTool? {
@@ -51,6 +51,21 @@ extension HomeTool {
             tint: .purple,
             makeView: { AnyView(MarkdownLibraryView()) },
             makeSettings: { AnyView(MarkdownLibrarySettingsView()) }
+        )
+    }
+}
+
+extension HomeTool {
+    static var phoneNotepad: HomeTool {
+        HomeTool(
+            id: "phone-notepad",
+            title: "Phone Notepad",
+            summary: "Scan a QR code to jot notes, actions and photos into a meeting from your phone.",
+            systemImage: "iphone.radiowaves.left.and.right",
+            tint: .green,
+            makeView: { AnyView(PhoneNotepadView()) },
+            makeSettings: { AnyView(PhoneNotepadSettingsView()) },
+            makeBadge: { AnyView(PhoneNotepadBadge()) }
         )
     }
 }

@@ -9,7 +9,9 @@ struct PendingAudio: Identifiable, Hashable {
 
 enum ActiveSheet: Identifiable {
     case newCourse
+    case newProject
     case editCourse(courseID: String)
+    case convertToProject(courseID: String)
     case settings
     case askAI(courseID: String?)
     case migration
@@ -18,7 +20,9 @@ enum ActiveSheet: Identifiable {
     var id: String {
         switch self {
         case .newCourse: return "newCourse"
+        case .newProject: return "newProject"
         case .editCourse(let id): return "editCourse-\(id)"
+        case .convertToProject(let id): return "convertToProject-\(id)"
         case .settings: return "settings"
         case .askAI(let id): return "askAI-\(id ?? "all")"
         case .migration: return "migration"
@@ -53,7 +57,7 @@ public struct MainView: View {
             return course.name.localizedCaseInsensitiveContains(searchText)
                 || course.metadata.code.localizedCaseInsensitiveContains(searchText)
                 || course.tags.contains { $0.localizedCaseInsensitiveContains(searchText) }
-                || course.lectures.contains { $0.title.localizedCaseInsensitiveContains(searchText) }
+                || course.lectures.contains { $0.shortTitle.localizedCaseInsensitiveContains(searchText) }
         }
     }
 
@@ -63,12 +67,15 @@ public struct MainView: View {
                 .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 320)
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            activeSheet = .newCourse
+                        Menu {
+                            Button("New Course...") { activeSheet = .newCourse }
+                            Button("New Project...") { activeSheet = .newProject }
                         } label: {
-                            Label("New Course", systemImage: "plus")
+                            Label("New", systemImage: "plus")
+                        } primaryAction: {
+                            activeSheet = .newCourse
                         }
-                        .help("New Course (⌘N)")
+                        .help("New Course (⌘N). Hold for New Project.")
                     }
                 }
         } detail: {
@@ -90,7 +97,13 @@ public struct MainView: View {
                     HomeView(
                         onOpenLecture: openLecture,
                         onOpenTool: { openToolID = $0.id },
-                        onNewCourse: { activeSheet = .newCourse }
+                        onNewCourse: { activeSheet = .newCourse },
+                        onNewProject: { activeSheet = .newProject },
+                        onOpenCourse: { storage.selectedCourseID = $0.id },
+                        onNewMeeting: { course, series in
+                            nav.pendingNewLectureSeries = series
+                            storage.selectedCourseID = course.id
+                        }
                     )
                 }
             }
@@ -116,9 +129,15 @@ public struct MainView: View {
             switch sheet {
             case .newCourse:
                 CourseEditorSheet { activeSheet = nil }
+            case .newProject:
+                CourseEditorSheet(kind: .project) { activeSheet = nil }
             case .editCourse(let courseID):
                 if let course = storage.course(id: courseID) {
                     CourseEditorSheet(course: course) { activeSheet = nil }
+                }
+            case .convertToProject(let courseID):
+                if let course = storage.course(id: courseID) {
+                    ProjectConversionSheet(course: course) { activeSheet = nil }
                 }
             case .settings:
                 SettingsView { activeSheet = nil }
@@ -167,7 +186,8 @@ public struct MainView: View {
                     course: course,
                     nav: nav,
                     onBack: goHome,
-                    onEditCourse: { activeSheet = .editCourse(courseID: course.id) }
+                    onEditCourse: { activeSheet = .editCourse(courseID: course.id) },
+                    onConvertToProject: { activeSheet = .convertToProject(courseID: course.id) }
                 )
                 sidebarFooter
             }
@@ -210,35 +230,17 @@ public struct MainView: View {
             }
 
             List(selection: $storage.selectedCourseID) {
-                Section(selectedTags.isEmpty ? "Courses" : "Courses (\(filteredCourses.count) of \(storage.courses.count))") {
-                    ForEach(filteredCourses) { course in
-                        CourseRow(course: course)
-                            .tag(course.id)
-                            .contextMenu {
-                                Button("Course Settings...") {
-                                    activeSheet = .editCourse(courseID: course.id)
-                                }
-                                Button("Move to Another Folder...") {
-                                    chooseFolder(for: course)
-                                }
-                                if course.isExternal {
-                                    Button("Move Back to Library Folder") {
-                                        move(course, to: nil)
-                                    }
-                                }
-                                Divider()
-                                Button("Reveal in Finder") {
-                                    storage.revealInFinder(url: course.folderURL)
-                                }
-                                Divider()
-                                Button("Move Course to Trash", role: .destructive) {
-                                    storage.deleteCourse(id: course.id)
-                                }
-                            }
+                ForEach(CourseKind.allCases) { kind in
+                    let shown = filteredCourses.filter { $0.kind == kind }
+                    let total = storage.courses.filter { $0.kind == kind }.count
+                    if total > 0 || kind == .course {
+                        Section(selectedTags.isEmpty ? "\(kind.displayName)s" : "\(kind.displayName)s (\(shown.count) of \(total))") {
+                            courseRows(shown)
+                        }
                     }
                 }
             }
-            .searchable(text: $searchText, placement: .sidebar, prompt: "Search courses, tags, lectures")
+            .searchable(text: $searchText, placement: .sidebar, prompt: "Search courses, projects, tags")
             .listStyle(.sidebar)
 
             if !storage.legacyFolders.isEmpty {
@@ -256,6 +258,39 @@ public struct MainView: View {
             }
 
             sidebarFooter
+        }
+    }
+
+    private func courseRows(_ courses: [Course]) -> some View {
+        ForEach(courses) { course in
+            CourseRow(course: course)
+                .tag(course.id)
+                .contextMenu {
+                    Button("\(course.kind.displayName) Settings...") {
+                        activeSheet = .editCourse(courseID: course.id)
+                    }
+                    if !course.isProject {
+                        Button("Convert to Project...") {
+                            activeSheet = .convertToProject(courseID: course.id)
+                        }
+                    }
+                    Button("Move to Another Folder...") {
+                        chooseFolder(for: course)
+                    }
+                    if course.isExternal {
+                        Button("Move Back to Library Folder") {
+                            move(course, to: nil)
+                        }
+                    }
+                    Divider()
+                    Button("Reveal in Finder") {
+                        storage.revealInFinder(url: course.folderURL)
+                    }
+                    Divider()
+                    Button("Move \(course.kind.displayName) to Trash", role: .destructive) {
+                        storage.deleteCourse(id: course.id)
+                    }
+                }
         }
     }
 
@@ -373,7 +408,8 @@ struct CourseRow: View {
             }
 
             HStack(spacing: 8) {
-                Label("\(course.lectures.count)", systemImage: "list.number")
+                Label("\(course.lectures.count)", systemImage: course.isProject ? "person.3" : "list.number")
+                    .help("\(course.lectures.count) \(course.kind.unitName.lowercased())\(course.lectures.count == 1 ? "" : "s")")
                 if !course.materials.isEmpty {
                     Label("\(course.materials.count)", systemImage: "paperclip")
                 }

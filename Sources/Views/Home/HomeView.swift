@@ -8,15 +8,74 @@ struct RecentLecture: Identifiable {
     var id: String { "\(course.id)#\(lecture.number)" }
 
     var recordingCount: Int { course.recordingGroups(for: lecture).count }
-    var noteCount: Int { course.notes.filter { $0.lectureNumber == lecture.number }.count }
+    var noteCount: Int { course.notes(for: lecture).count }
     var totalDuration: Double { lecture.recordings.reduce(0) { $0 + $1.durationSeconds } }
 }
 
-/// Shown when no course is open: the latest lectures across all courses, then the tools.
+/// Something coming up, listed under Upcoming: a series' next meeting, a key date, or a session already
+/// created for a later date.
+struct UpcomingItem: Identifiable {
+    enum Kind {
+        case nextInSeries(String)
+        case keyDate
+        case scheduled(Int)
+    }
+
+    let course: Course
+    let kind: Kind
+    let title: String
+    let date: Date
+
+    var id: String {
+        switch kind {
+        case .nextInSeries(let name): return "\(course.id)#series-\(name)"
+        case .keyDate: return "\(course.id)#date-\(title)-\(date.timeIntervalSince1970)"
+        case .scheduled(let number): return "\(course.id)#\(number)"
+        }
+    }
+
+    /// Two weeks of meetings, two months of key dates.
+    static func all(in courses: [Course], now: Date = Date()) -> [UpcomingItem] {
+        let calendar = Calendar.current
+        let endOfToday = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) ?? now
+        let soon = now.addingTimeInterval(14 * 86_400)
+        let keyDateHorizon = now.addingTimeInterval(62 * 86_400)
+        var items: [UpcomingItem] = []
+        for course in courses {
+            for lecture in course.lectures where lecture.date >= endOfToday && lecture.date < soon {
+                items.append(UpcomingItem(course: course, kind: .scheduled(lecture.number), title: lecture.shortTitle, date: lecture.date))
+            }
+            guard course.isProject else { continue }
+            for series in course.metadata.series {
+                // The next usual slot that doesn't have a meeting yet.
+                var from = now
+                var next = series.nextOccurrence(from: from)
+                while let date = next, course.lectures.contains(where: { $0.series == series.name && calendar.isDate($0.date, inSameDayAs: date) }) {
+                    from = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: date)) ?? date
+                    next = series.nextOccurrence(from: from)
+                }
+                guard let date = next, date < soon else { continue }
+                let count = course.lectures.filter { $0.series == series.name && $0.date < date }.count
+                items.append(UpcomingItem(course: course, kind: .nextInSeries(series.name), title: MeetingSeries.meetingTitle(series: series.name, index: count + 1), date: date))
+            }
+            for keyDate in course.metadata.keyDates where keyDate.date >= calendar.startOfDay(for: now) && keyDate.date < keyDateHorizon {
+                items.append(UpcomingItem(course: course, kind: .keyDate, title: keyDate.title, date: keyDate.date))
+            }
+        }
+        return items.sorted { $0.date < $1.date }
+    }
+}
+
+/// Shown when no course is open: what's coming up, the latest lectures and meetings across all courses, then
+/// the tools.
 struct HomeView: View {
     let onOpenLecture: (Course, Int) -> Void
     let onOpenTool: (HomeTool) -> Void
     let onNewCourse: () -> Void
+    let onNewProject: () -> Void
+    let onOpenCourse: (Course) -> Void
+    /// Opens a project with the New Meeting sheet set to a series.
+    let onNewMeeting: (Course, String) -> Void
 
     @ObservedObject private var storage = CourseStorageService.shared
     @ObservedObject private var settings = AppSettings.shared
@@ -34,6 +93,9 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 header
+                if !upcoming.isEmpty {
+                    upcomingSection
+                }
                 recentSection
                 toolsSection
             }
@@ -58,22 +120,61 @@ struct HomeView: View {
             } label: {
                 Label("New Course", systemImage: "plus")
             }
+            Button {
+                onNewProject()
+            } label: {
+                Label("New Project", systemImage: "folder.badge.plus")
+            }
+        }
+    }
+
+    private var hasProjects: Bool { storage.courses.contains(where: \.isProject) }
+
+    // MARK: - Upcoming
+
+    private var upcoming: [UpcomingItem] {
+        Array(UpcomingItem.all(in: storage.courses).prefix(8))
+    }
+
+    private var upcomingSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionTitle("Upcoming", detail: "Next two weeks of meetings and lectures, and key dates.")
+            VStack(spacing: 0) {
+                ForEach(Array(upcoming.enumerated()), id: \.element.id) { index, item in
+                    if index > 0 { Divider().padding(.leading, 14) }
+                    UpcomingRow(item: item) {
+                        switch item.kind {
+                        case .scheduled(let number): onOpenLecture(item.course, number)
+                        case .nextInSeries(let series): onNewMeeting(item.course, series)
+                        case .keyDate: onOpenCourse(item.course)
+                        }
+                    }
+                }
+            }
+            .background(cardBackground)
         }
     }
 
     private var librarySummary: String {
-        let courses = storage.courses.count
-        let lectures = storage.courses.reduce(0) { $0 + $1.lectures.count }
+        let courses = storage.courses.filter { !$0.isProject }
+        let projects = storage.courses.filter(\.isProject)
+        let lectures = courses.reduce(0) { $0 + $1.lectures.count }
+        let meetings = projects.reduce(0) { $0 + $1.lectures.count }
         let notes = storage.courses.reduce(0) { $0 + $1.notes.count }
         func plural(_ n: Int, _ word: String) -> String { "\(n) \(word)\(n == 1 ? "" : "s")" }
-        return [plural(courses, "course"), plural(lectures, "lecture"), plural(notes, "note")].joined(separator: " · ")
+        var parts = [plural(courses.count, "course"), plural(lectures, "lecture")]
+        if !projects.isEmpty {
+            parts += [plural(projects.count, "project"), plural(meetings, "meeting")]
+        }
+        parts.append(plural(notes, "note"))
+        return parts.joined(separator: " · ")
     }
 
     // MARK: - Recent Lectures
 
     private var recentSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionTitle("Recent Lectures", detail: recentLectures.isEmpty ? nil : "Showing \(recentLectures.count).")
+            sectionTitle(hasProjects ? "Recent Lectures & Meetings" : "Recent Lectures", detail: recentLectures.isEmpty ? nil : "Showing \(recentLectures.count).")
 
             if recentLectures.isEmpty {
                 VStack(spacing: 10) {
@@ -183,9 +284,12 @@ private struct RecentLectureRow: View {
                         Text(item.lecture.label)
                             .font(.system(.caption, design: .monospaced).bold())
                             .foregroundColor(.accentColor)
-                        Text(item.lecture.title.isEmpty ? "Lecture \(item.lecture.number)" : item.lecture.title)
+                        Text(item.lecture.shortTitle)
                             .font(.headline)
                             .lineLimit(1)
+                        if let series = item.lecture.series, !item.lecture.title.isEmpty {
+                            SeriesChip(name: series)
+                        }
                     }
                     HStack(spacing: 6) {
                         if !item.course.metadata.code.isEmpty {
@@ -238,7 +342,7 @@ private struct RecentLectureRow: View {
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
         .contextMenu {
-            Button("Open Lecture", action: onOpen)
+            Button("Open \(item.course.kind.unitName)", action: onOpen)
             Button("Reveal Course in Finder") { CourseStorageService.shared.revealInFinder(url: item.course.folderURL) }
         }
     }
@@ -247,6 +351,74 @@ private struct RecentLectureRow: View {
         Label("\(count)", systemImage: icon)
             .opacity(count == 0 ? 0.5 : 1)
             .help(help)
+    }
+}
+
+private struct UpcomingRow: View {
+    let item: UpcomingItem
+    let onOpen: () -> Void
+
+    @State private var isHovered = false
+
+    private var icon: (String, Color) {
+        switch item.kind {
+        case .nextInSeries(let series): return ("calendar.badge.plus", SeriesChip.color(for: series))
+        case .keyDate: return ("flag.fill", .red)
+        case .scheduled: return ("calendar", .accentColor)
+        }
+    }
+
+    private var actionHint: String {
+        switch item.kind {
+        case .nextInSeries: return "New Meeting"
+        case .keyDate: return "Key date"
+        case .scheduled: return "Scheduled"
+        }
+    }
+
+    var body: some View {
+        Button(action: onOpen) {
+            HStack(spacing: 12) {
+                Image(systemName: icon.0)
+                    .foregroundColor(icon.1)
+                    .frame(width: 20)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.title)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text(item.course.displayName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 12)
+                Text(actionHint)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(item.date, format: .relative(presentation: .named))
+                        .font(.caption.bold())
+                    Text(isKeyDate ? DateFormats.isoDay.string(from: item.date) : DateFormats.display.string(from: item.date))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                .frame(minWidth: 120, alignment: .trailing)
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+            .background(isHovered ? Color.accentColor.opacity(0.08) : Color.clear)
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+    }
+
+    private var isKeyDate: Bool {
+        if case .keyDate = item.kind { return true }
+        return false
     }
 }
 

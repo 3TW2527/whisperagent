@@ -25,8 +25,13 @@ public struct TranscriptContext: Codable, Hashable, Sendable {
     public var sourceAudio: String
     public var model: String
     public var transcribedAt: Date
+    /// Nil in timing data saved before projects existed, which were all courses.
+    public var kind: CourseKind?
+    /// Projects only: the meeting's series and its place in it.
+    public var series: String?
+    public var seriesIndex: Int?
 
-    public init(courseName: String, courseCode: String, lectureNumber: Int, lectureTitle: String, lectureDate: Date, recordingNumber: Int, sourceAudio: String, model: String, transcribedAt: Date = Date()) {
+    public init(courseName: String, courseCode: String, lectureNumber: Int, lectureTitle: String, lectureDate: Date, recordingNumber: Int, sourceAudio: String, model: String, transcribedAt: Date = Date(), kind: CourseKind = .course, series: String? = nil, seriesIndex: Int? = nil) {
         self.courseName = courseName
         self.courseCode = courseCode
         self.lectureNumber = lectureNumber
@@ -36,6 +41,21 @@ public struct TranscriptContext: Codable, Hashable, Sendable {
         self.sourceAudio = sourceAudio
         self.model = model
         self.transcribedAt = transcribedAt
+        self.kind = kind
+        self.series = series
+        self.seriesIndex = seriesIndex
+    }
+
+    /// Takes the current name, number, title, date and series from the course and lecture.
+    public mutating func update(course: Course, lecture: Lecture) {
+        courseName = course.name
+        courseCode = course.metadata.code
+        kind = course.kind
+        lectureNumber = lecture.number
+        lectureTitle = lecture.title
+        lectureDate = lecture.date
+        series = lecture.series
+        seriesIndex = lecture.seriesIndex
     }
 }
 
@@ -90,11 +110,20 @@ public enum TranscriptFormatter {
         if !context.courseCode.isEmpty {
             lines.append("course_code: \(yamlString(context.courseCode))")
         }
-        lines.append("lecture: \(context.lectureNumber)")
-        if !context.lectureTitle.isEmpty {
-            lines.append("lecture_title: \(yamlString(context.lectureTitle))")
+        let kind = context.kind ?? .course
+        // `lecture: 3` for a course, `meeting: 3` for a project.
+        let key = kind.unitName.lowercased()
+        let title = context.lectureTitle.isEmpty
+            ? context.series.flatMap { series in context.seriesIndex.map { MeetingSeries.meetingTitle(series: series, index: $0) } } ?? ""
+            : context.lectureTitle
+        lines.append("\(key): \(context.lectureNumber)")
+        if !title.isEmpty {
+            lines.append("\(key)_title: \(yamlString(title))")
         }
-        lines.append("lecture_date: \(DateFormats.isoMinute.string(from: context.lectureDate))")
+        if let series = context.series {
+            lines.append("series: \(yamlString(series))")
+        }
+        lines.append("\(key)_date: \(DateFormats.isoMinute.string(from: context.lectureDate))")
         lines.append("recording: \(context.recordingNumber)")
         lines.append("source_audio: \(yamlString(context.sourceAudio))")
         lines.append("model: \(yamlString(context.model))")
@@ -105,8 +134,8 @@ public enum TranscriptFormatter {
         lines.append("---")
         lines.append("")
 
-        var heading = "# \(context.courseName) — Lecture \(context.lectureNumber)"
-        if !context.lectureTitle.isEmpty { heading += ": \(context.lectureTitle)" }
+        var heading = "# \(context.courseName) — \(kind.unitName) \(context.lectureNumber)"
+        if !title.isEmpty { heading += ": \(title)" }
         heading += " (Recording \(context.recordingNumber))"
         lines.append(heading)
         lines.append("")

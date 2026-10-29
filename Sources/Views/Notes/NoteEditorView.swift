@@ -35,19 +35,26 @@ struct NoteEditorView: View {
             title: note.name,
             linkContext: WikilinkContext(course: course),
             exportDirectory: course.folderURL,
-            onWikilink: onWikilink
+            onWikilink: onWikilink,
+            // A project's actions come from its notes, so they're re-read after each save.
+            onSaved: course.isProject ? { [id = course.id] in CourseStorageService.shared.refresh(courseID: id) } : nil
         )
     }
 }
 
 /// Markdown editor for any `.md` file, with a live preview (LaTeX, wikilinks), autosave and PDF export.
 /// Used for course notes and for files in the Markdown Library.
+///
+/// Changes made to the file elsewhere (the phone notepad, ticking an action, another app) are picked up every
+/// couple of seconds: with no unsaved edits the file is reloaded, and text added to its end is kept alongside
+/// unsaved edits.
 struct MarkdownDocumentEditor: View {
     let fileURL: URL
     let title: String
     let linkContext: WikilinkContext
     let exportDirectory: URL
     let onWikilink: (WikilinkTarget) -> Void
+    var onSaved: (() -> Void)?
 
     @AppStorage private var mode: NoteViewMode
     @State private var text = ""
@@ -60,6 +67,8 @@ struct MarkdownDocumentEditor: View {
     @State private var savedAt: Date?
     @State private var isShowingHelp = false
     @State private var editorController = MarkdownEditorController()
+    /// When the file was last read or written here, to notice changes made elsewhere.
+    @State private var knownModificationDate: Date?
 
     /// `modeKey` keeps the edit/split/preview choice separate per place the editor is used.
     init(
@@ -69,13 +78,15 @@ struct MarkdownDocumentEditor: View {
         exportDirectory: URL,
         modeKey: String = "whisperlectures_note_mode",
         defaultMode: NoteViewMode = .split,
-        onWikilink: @escaping (WikilinkTarget) -> Void
+        onWikilink: @escaping (WikilinkTarget) -> Void,
+        onSaved: (() -> Void)? = nil
     ) {
         self.fileURL = fileURL
         self.title = title
         self.linkContext = linkContext
         self.exportDirectory = exportDirectory
         self.onWikilink = onWikilink
+        self.onSaved = onSaved
         self._mode = AppStorage(wrappedValue: defaultMode, modeKey)
     }
 
@@ -95,6 +106,12 @@ struct MarkdownDocumentEditor: View {
         .onAppear(perform: load)
         .onDisappear(perform: flush)
         .onChange(of: text) { scheduleSave() }
+        .task(id: fileURL) {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                checkForOutsideChanges()
+            }
+        }
     }
 
     private var toolbar: some View {
@@ -211,7 +228,30 @@ struct MarkdownDocumentEditor: View {
         guard !isLoaded else { return }
         text = (try? String(contentsOf: fileURL, encoding: .utf8)) ?? ""
         lastSaved = text
+        knownModificationDate = modificationDate()
         isLoaded = true
+    }
+
+    private func modificationDate() -> Date? {
+        (try? FileManager.default.attributesOfItem(atPath: fileURL.path))?[.modificationDate] as? Date
+    }
+
+    /// Takes in what was written to the file elsewhere since it was last read or saved here.
+    private func checkForOutsideChanges() {
+        guard isLoaded, let date = modificationDate(), date != knownModificationDate else { return }
+        knownModificationDate = date
+        guard let disk = try? String(contentsOf: fileURL, encoding: .utf8), disk != lastSaved else { return }
+        if text == lastSaved {
+            text = disk
+            lastSaved = disk
+        } else if disk.hasPrefix(lastSaved) {
+            // Added to the end elsewhere (e.g. from the phone) while there are unsaved edits here: keep both.
+            text += disk.dropFirst(lastSaved.count)
+            lastSaved = disk
+        } else {
+            statusMessage = "This note was also changed elsewhere. Your version here will be saved."
+            lastSaved = disk
+        }
     }
 
     private func scheduleSave() {
@@ -231,8 +271,10 @@ struct MarkdownDocumentEditor: View {
         do {
             try text.write(to: fileURL, atomically: true, encoding: .utf8)
             lastSaved = text
+            knownModificationDate = modificationDate()
             savedAt = Date()
             errorMessage = nil
+            onSaved?()
         } catch {
             errorMessage = "Could not save: \(error.localizedDescription)"
         }

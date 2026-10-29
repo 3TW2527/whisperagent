@@ -31,6 +31,7 @@ public struct AudioTrimmerSheet: View {
     @State private var lectureTag: Int
     @State private var newLectureTitle = ""
     @State private var newLectureDate: Date
+    @State private var newLectureSeries: String?
     @State private var customName = ""
 
     public init(audioURL: URL, course: Course, initialLecture: Int?, onDismiss: @escaping () -> Void) {
@@ -51,7 +52,7 @@ public struct AudioTrimmerSheet: View {
 
     private var proposedName: String {
         if lectureTag == Self.newLectureTag {
-            return String(format: "%@_L%02d_R1", liveCourse.filePrefix, liveCourse.metadata.nextLectureNumber)
+            return "\(liveCourse.filePrefix)_\(Lecture.label(number: liveCourse.metadata.nextLectureNumber, kind: liveCourse.kind))_R1"
         }
         return storage.proposedRecordingName(courseID: course.id, lectureNumber: lectureTag) ?? ""
     }
@@ -194,16 +195,16 @@ public struct AudioTrimmerSheet: View {
                     // Destination: lecture and file name
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Text("Lecture:")
+                            Text("\(liveCourse.kind.unitName):")
                                 .font(.subheadline.bold())
                                 .frame(width: 110, alignment: .leading)
                             Picker("", selection: $lectureTag) {
                                 ForEach(liveCourse.lectures.reversed()) { lecture in
-                                    Text("\(lecture.label) · \(lecture.title.isEmpty ? DateFormats.display.string(from: lecture.date) : lecture.title)")
+                                    Text("\(lecture.label) · \(lecture.title.isEmpty && lecture.series == nil ? DateFormats.display.string(from: lecture.date) : lecture.shortTitle)")
                                         .tag(lecture.number)
                                 }
                                 Divider()
-                                Text("New lecture (L\(String(format: "%02d", liveCourse.metadata.nextLectureNumber)))")
+                                Text("New \(liveCourse.kind.unitName.lowercased()) (\(Lecture.label(number: liveCourse.metadata.nextLectureNumber, kind: liveCourse.kind)))")
                                     .tag(Self.newLectureTag)
                             }
                             .labelsHidden()
@@ -215,6 +216,16 @@ public struct AudioTrimmerSheet: View {
                             HStack {
                                 Text("")
                                     .frame(width: 110)
+                                if liveCourse.isProject && !liveCourse.metadata.series.isEmpty {
+                                    Picker("", selection: $newLectureSeries) {
+                                        Text("No series").tag(String?.none)
+                                        ForEach(liveCourse.metadata.series) { series in
+                                            Text(series.name).tag(String?.some(series.name))
+                                        }
+                                    }
+                                    .labelsHidden()
+                                    .frame(width: 120)
+                                }
                                 TextField("Title (optional)", text: $newLectureTitle)
                                     .textFieldStyle(.roundedBorder)
                                     .frame(width: 200)
@@ -402,7 +413,7 @@ public struct AudioTrimmerSheet: View {
         do {
             var lectureNumber = lectureTag
             if lectureTag == Self.newLectureTag {
-                lectureNumber = try storage.addLecture(courseID: course.id, title: newLectureTitle, date: newLectureDate).number
+                lectureNumber = try storage.addLecture(courseID: course.id, title: newLectureTitle, date: newLectureDate, series: newLectureSeries).number
                 lectureTag = lectureNumber
             }
             let trimmedName = customName.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -92,7 +92,7 @@ public struct JobRowView: View {
                         .font(.caption.bold())
                         .lineLimit(1)
                     if showsCourse {
-                        Text("\(job.courseName) · L\(String(format: "%02d", job.lectureNumber))")
+                        Text("\(job.courseName) · \(Lecture.label(number: job.lectureNumber, kind: CourseStorageService.shared.course(id: job.courseID)?.kind ?? .course))")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                             .lineLimit(1)

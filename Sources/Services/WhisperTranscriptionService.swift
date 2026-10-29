@@ -366,7 +366,7 @@ public class WhisperTranscriptionService: ObservableObject {
             guard let lecture = course.lecture(number: job.lectureNumber) else { throw StorageError.lectureNotFound }
 
             let segments = Self.segments(from: results)
-            let context = TranscriptContext(
+            var context = TranscriptContext(
                 courseName: course.name,
                 courseCode: course.metadata.code,
                 lectureNumber: lecture.number,
@@ -376,6 +376,7 @@ public class WhisperTranscriptionService: ObservableObject {
                 sourceAudio: job.sourceURL.lastPathComponent,
                 model: job.modelVariant
             )
+            context.update(course: course, lecture: lecture)
             let files = try storage.saveRecording(
                 slot: slot,
                 document: SegmentsDocument(context: context, segments: segments),

@@ -6,16 +6,23 @@ struct WikilinkContext: Equatable {
     var notes: [String] = []
     var lectures: [LectureRef] = []
     var files: [String] = []
+    /// `Lecture` or `Meeting`, so `[[Meeting 3]]` links to a project's meeting 3.
+    var unitName = CourseKind.course.unitName
+    var unitLetter = CourseKind.course.unitLetter
 
     struct LectureRef: Equatable {
         let number: Int
         let title: String
+        /// A meeting's series title, e.g. "Team Meeting 2", which links to it too.
+        var seriesTitle: String? = nil
     }
 
     init(course: Course) {
         notes = course.notes.map(\.name)
-        lectures = course.lectures.map { LectureRef(number: $0.number, title: $0.title) }
-        files = course.materials.map(\.name) + course.transcripts.map(\.name)
+        lectures = course.lectures.map { LectureRef(number: $0.number, title: $0.title, seriesTitle: $0.seriesTitle) }
+        files = course.materials.map(\.name) + course.meetingFiles.values.flatMap { $0.map(\.name) } + course.transcripts.map(\.name)
+        unitName = course.kind.unitName
+        unitLetter = course.kind.unitLetter
     }
 
     /// Links between plain Markdown files, e.g. the files of one Markdown Library folder.
@@ -26,8 +33,10 @@ struct WikilinkContext: Equatable {
     var json: String {
         let object: [String: Any] = [
             "notes": notes,
-            "lectures": lectures.map { ["number": $0.number, "title": $0.title] },
+            "lectures": lectures.map { ["number": $0.number, "title": $0.title, "seriesTitle": $0.seriesTitle ?? ""] },
             "files": files,
+            "unit": unitName.lowercased(),
+            "letter": unitLetter.lowercased(),
         ]
         return Self.jsonString(object)
     }
