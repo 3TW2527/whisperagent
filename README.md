@@ -115,21 +115,16 @@ Earlier versions used one folder per lecture. On launch, the app finds those fol
 
 ---
 
-## How to Open and Run
+## Building
 
-### In Xcode
-```bash
-open WhisperLectures.xcodeproj
-```
-Select the `WhisperLectures` scheme and press **Cmd + R**.
+You need a Mac with macOS 14 or later and the full [Xcode](https://apps.apple.com/app/xcode/id497799835) 16 or later. Then:
 
-### Build Script
 ```bash
-./build.sh      # builds WhisperLectures.app into the project root
-./package.sh    # creates a distributable zip
+./build.sh            # checks your setup, then builds WhisperLectures.app
+open WhisperLectures.app
 ```
 
-If [XcodeGen](https://github.com/yonaskolb/XcodeGen) is installed, `build.sh` regenerates the Xcode project from `project.yml` first. Run `xcodegen generate` yourself after adding or removing source files.
+`./build.sh --check` only checks your setup, and `./build.sh --install` also copies the app to /Applications. See **[BUILDING.md](BUILDING.md)** for requirements, options, building in Xcode, and troubleshooting.
 
 ---
 

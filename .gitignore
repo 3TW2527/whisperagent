@@ -11,6 +11,8 @@ xcuserdata/
 Packages/
 Package.pins
 Package.resolved
+# Pinned package versions for the Xcode project, so every build uses the same WhisperKit.
+!WhisperLectures.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 .swiftpm/
 
 # macOS
