@@ -381,10 +381,9 @@ struct CanvasView: View {
         return day.formatted(sameYear ? .dateTime.weekday(.wide).day().month(.wide) : .dateTime.weekday(.wide).day().month(.wide).year())
     }
 
+    /// The course's code and name, e.g. `CHEM101 · Chemistry`.
     private func courseLabel(_ courseID: Int) -> String {
-        guard let course = canvas.course(id: courseID) else { return "" }
-        if let code = course.courseCode, !code.isEmpty { return code }
-        return course.name
+        canvas.course(id: courseID)?.displayName ?? ""
     }
 }
 
@@ -474,7 +473,9 @@ private struct CanvasFileRow: View {
         HStack(spacing: 6) {
             if let courseLabel, !courseLabel.isEmpty {
                 Text(courseLabel)
-                    .font(.system(.caption, design: .monospaced))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .help(courseLabel)
             }
             if let module = file.moduleName {
                 Label(module, systemImage: "square.stack")
