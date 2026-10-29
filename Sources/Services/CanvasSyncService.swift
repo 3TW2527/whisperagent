@@ -159,6 +159,40 @@ public final class CanvasSyncService: ObservableObject {
         snapshot.lastSyncedAt = Date()
         publish()
         save()
+        matchExistingFiles()
+    }
+
+    /// Adopts files already in a linked course's materials folder, so they aren't downloaded twice. A file with
+    /// the Canvas file's name and size counts as downloaded; the same name with another size counts as an older
+    /// version, which downloading replaces. Downloads isn't checked: a name match there is too likely a coincidence.
+    public func matchExistingFiles() {
+        let storage = CourseStorageService.shared
+        // Each local file belongs to one Canvas file, even when two Canvas files share a name.
+        var claimed = Set(downloads.values.filter { fileManager.fileExists(atPath: $0.path) }.map(\.path))
+        var candidates: [(file: CanvasFileRecord, url: URL, localSize: Int, modified: Date, sameSize: Bool)] = []
+        for file in files {
+            if let entry = downloads[file.id], fileManager.fileExists(atPath: entry.path) { continue }
+            guard let size = file.size, let course = storage.course(linkedToCanvas: file.courseID) else { continue }
+            let url = course.materialsURL.appendingPathComponent(Self.safeFileName(file.name))
+            guard !claimed.contains(url.path), let attributes = try? fileManager.attributesOfItem(atPath: url.path),
+                  let localSize = attributes[.size] as? Int else { continue }
+            let modified = attributes[.modificationDate] as? Date ?? Date()
+            candidates.append((file, url, localSize, modified, localSize == size))
+        }
+
+        // Exact matches first, so a same-named file of another size can't take a local file that matches exactly.
+        var changed = false
+        for candidate in candidates.sorted(by: { $0.sameSize && !$1.sameSize }) where !claimed.contains(candidate.url.path) {
+            downloads[candidate.file.id] = CanvasDownload(
+                path: candidate.url.path,
+                downloadedAt: candidate.modified,
+                modifiedAt: candidate.file.modifiedAt,
+                isOutdated: candidate.sameSize ? nil : true
+            )
+            claimed.insert(candidate.url.path)
+            changed = true
+        }
+        if changed { saveDownloads() }
     }
 
     private func syncCourse(_ courseID: Int, client: CanvasClient) async throws {
@@ -303,6 +337,9 @@ public final class CanvasSyncService: ObservableObject {
     public func downloadState(of file: CanvasFileRecord) -> CanvasDownloadState {
         if let entry = downloads[file.id], fileManager.fileExists(atPath: entry.path) {
             let url = URL(fileURLWithPath: entry.path)
+            if entry.isOutdated == true {
+                return .updateAvailable(url)
+            }
             if let modified = file.modifiedAt, let downloaded = entry.modifiedAt, modified > downloaded {
                 return .updateAvailable(url)
             }

@@ -76,6 +76,7 @@ struct CanvasSettingsView: View {
             set: { courseID in
                 do {
                     try storage.linkCanvasCourse(course.id, toCourseID: courseID)
+                    canvas.matchExistingFiles()
                     linkError = nil
                 } catch {
                     linkError = "Couldn't link the course: \(error.localizedDescription)"

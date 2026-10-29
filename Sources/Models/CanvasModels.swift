@@ -152,6 +152,9 @@ public struct CanvasDownload: Codable, Hashable, Sendable {
     public var downloadedAt: Date
     /// The file's `modified_at` when it was downloaded. A newer one on Canvas means an update is available.
     public var modifiedAt: Date?
+    /// True for a file of the same name found in the materials folder with a different size, so it's
+    /// probably an older version. Downloading replaces it.
+    public var isOutdated: Bool?
 }
 
 public enum CanvasDownloadState: Equatable, Sendable {
