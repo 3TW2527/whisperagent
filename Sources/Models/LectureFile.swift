@@ -63,6 +63,14 @@ public struct LectureFile: Identifiable, Hashable, Sendable {
     }
 
     public var systemIconName: String {
+        Self.systemIconName(forExtension: fileExtension)
+    }
+
+    public var iconColor: Color {
+        Self.iconColor(forExtension: fileExtension)
+    }
+
+    public static func systemIconName(forExtension fileExtension: String) -> String {
         switch fileExtension {
         case "pdf":
             return "doc.richtext"
@@ -79,7 +87,7 @@ public struct LectureFile: Identifiable, Hashable, Sendable {
         }
     }
 
-    public var iconColor: Color {
+    public static func iconColor(forExtension fileExtension: String) -> Color {
         switch fileExtension {
         case "pdf":
             return .red

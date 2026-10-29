@@ -21,6 +21,14 @@ With no course open, the main area shows the **home screen**. Return to it at an
 
 The library button at the bottom of the sidebar (iCloud Drive / Local) opens the library folder in Finder.
 
+### Canvas
+A home-screen tool that lists the files in your Canvas courses and shows what's new. Connect it from the tool's gear with your school's Canvas address and an access token (Canvas → Account → Settings → New Access Token). The token is kept in your keychain and only sees what you can see as a student.
+- **Finds hidden files too.** Files come from each course's Files list, its modules, and links in its pages, assignments, discussions, announcements and syllabus, so files still show up when a lecturer hides the Files tab.
+- **By Date** groups every course's files by day: Upcoming (not unlocked yet), Today, Yesterday, and so on. A file goes under its newest date, whichever of these is latest: uploaded, changed, unlocked, or first seen by the app. A badge says which (New, Updated, Released, Found). On a course's first sync nothing counts as found, so connecting doesn't make every old file look new.
+- **By Course** lists each course's files A–Z or newest first, with the module each file is in.
+- **Downloading:** tick files, use **Select All** (its menu can also pick only files not yet downloaded), then **Download**. In the tool's settings you can link a Canvas course to one of your courses, so its files go into that course's materials folder; files from other courses go to Downloads. A file that changes on Canvas shows **Update**, and downloading it again moves the old copy to the Trash.
+- Syncs when the tool opens, on refresh, and optionally every 15, 30 or 60 minutes while the app is open. The home-screen card shows how many files are new today.
+
 ### Markdown Library
 A home-screen tool for Markdown files outside your courses. Add folders from the tool, its gear menu, or **Settings → Tools** and it lists every `.md` file in them, subfolders included. Files open in the same editor as course notes, with preview, side-by-side and edit modes, LaTeX, PDF export, and `[[wikilinks]]` between files in the same folder. You can create, rename and delete files there too. Files stay where they are, and edits are saved straight back to them.
 
@@ -106,6 +114,7 @@ Sources/
 │   ├── Course.swift                    Course, Lecture, RecordingInfo, RecordingGroup
 │   ├── TranscriptFile.swift            Transcript file on disk (md/txt/srt/vtt)
 │   ├── LectureFile.swift               Course material file
+│   ├── CanvasModels.swift              Canvas API responses, file records, saved sync state
 │   ├── TranscriptionJob.swift          Queued/running job state
 │   ├── AudioAnalysisResult.swift       Waveform & silence detection result
 │   └── AppSettings.swift               Root folder, formats, concurrency, model
@@ -115,6 +124,9 @@ Sources/
 │   ├── TranscriptFormatter.swift       Markdown / text / SRT / VTT rendering from timed segments
 │   ├── LibraryIndexGenerator.swift     INDEX.md, COURSE.md, AGENTS.md / CLAUDE.md / GEMINI.md
 │   ├── StudyBundleExporter.swift       Single-file course bundle for upload-based chat apps
+│   ├── CanvasClient.swift              Canvas REST API: paging, files, modules, pages, downloads
+│   ├── CanvasSyncService.swift         Canvas sync, first-seen tracking, downloads into materials
+│   ├── KeychainStore.swift             Keychain storage for the Canvas token
 │   ├── AudioProcessingService.swift    Waveform analysis & trimming
 │   └── VoiceMemosService.swift         Voice Memos & audio file picker helpers
 └── Views/
@@ -129,9 +141,11 @@ Sources/
     ├── FileAttachmentsView.swift       Materials browser (card/list, Quick Look)
     ├── QuickLookPreview.swift          QLPreviewView wrapper
     ├── SettingsView.swift              Storage, formats, concurrency, models
+    ├── Home/CanvasView.swift           Canvas tool: by date / by course, checkboxes, downloads
+    ├── Home/CanvasSettingsView.swift   Canvas connection, course links, sync interval
     └── Components/WaveformView.swift   Draggable waveform trimmer
 ```
 
 ## Privacy
 
-Audio is transcribed locally and never uploaded. The app doesn't send your notes anywhere. The "Ask an AI" page only shows instructions, and you choose whether and where to share your files.
+Audio is transcribed locally and never uploaded. The app doesn't send your notes anywhere. The Canvas tool only talks to the Canvas site you enter, with your own token. The "Ask an AI" page only shows instructions, and you choose whether and where to share your files.

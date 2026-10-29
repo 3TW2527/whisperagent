@@ -275,6 +275,22 @@ public class CourseStorageService: ObservableObject {
         reload()
     }
 
+    /// Sends a Canvas course's downloads to this course's materials folder, or to Downloads when `courseID` is nil.
+    public func linkCanvasCourse(_ canvasCourseID: Int, toCourseID courseID: String?) throws {
+        for course in courses where course.metadata.canvasCourseIDs.contains(canvasCourseID) && course.id != courseID {
+            try mutateMetadata(folderURL: course.folderURL) { $0.canvasCourseIDs.removeAll { $0 == canvasCourseID } }
+        }
+        if let courseID, let course = course(id: courseID), !course.metadata.canvasCourseIDs.contains(canvasCourseID) {
+            try mutateMetadata(folderURL: course.folderURL) { $0.canvasCourseIDs.append(canvasCourseID) }
+        }
+        reload()
+    }
+
+    /// The local course a Canvas course downloads into, if it's linked to one.
+    public func course(linkedToCanvas canvasCourseID: Int) -> Course? {
+        courses.first { $0.metadata.canvasCourseIDs.contains(canvasCourseID) }
+    }
+
     public func hasActiveReservations(courseID: String) -> Bool {
         reservedSlots.contains { $0.courseID == courseID }
     }

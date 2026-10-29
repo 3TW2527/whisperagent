@@ -259,9 +259,13 @@ private struct ToolCard: View {
     var body: some View {
         Button(action: onOpen) {
             VStack(alignment: .leading, spacing: 6) {
-                Image(systemName: tool.systemImage)
-                    .font(.title2)
-                    .foregroundColor(tool.tint)
+                HStack(alignment: .top) {
+                    Image(systemName: tool.systemImage)
+                        .font(.title2)
+                        .foregroundColor(tool.tint)
+                    Spacer()
+                    tool.makeBadge?()
+                }
                 Text(tool.title)
                     .font(.headline)
                 Text(tool.summary)

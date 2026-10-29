@@ -152,6 +152,7 @@ public struct MainView: View {
             if !storage.legacyFolders.isEmpty {
                 activeSheet = .migration
             }
+            CanvasSyncService.shared.startAutoSync()
         }
     }
 

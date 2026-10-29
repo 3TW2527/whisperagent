@@ -6,7 +6,8 @@ import SwiftUI
 /// and opening the card shows the view under a header with a way back home.
 ///
 /// A tool with settings gives a `makeSettings` view. It opens from the gear in the tool's header and is also
-/// listed under Settings → Tools, so tool options never go into the general settings.
+/// listed under Settings → Tools, so tool options never go into the general settings. A `makeBadge` view is
+/// shown on the tool's home-screen card, e.g. a count of new items.
 struct HomeTool: Identifiable {
     let id: String
     let title: String
@@ -15,10 +16,11 @@ struct HomeTool: Identifiable {
     let tint: Color
     let makeView: @MainActor () -> AnyView
     var makeSettings: (@MainActor () -> AnyView)? = nil
+    var makeBadge: (@MainActor () -> AnyView)? = nil
 
     /// Every tool, in the order the home screen shows them.
     static var all: [HomeTool] {
-        [.markdownLibrary]
+        [.canvas, .markdownLibrary]
     }
 
     static func tool(id: String) -> HomeTool? {
@@ -27,6 +29,19 @@ struct HomeTool: Identifiable {
 }
 
 extension HomeTool {
+    static var canvas: HomeTool {
+        HomeTool(
+            id: "canvas",
+            title: "Canvas",
+            summary: "See what's new in your Canvas courses and download files into their materials.",
+            systemImage: "graduationcap.fill",
+            tint: .red,
+            makeView: { AnyView(CanvasView()) },
+            makeSettings: { AnyView(CanvasSettingsView()) },
+            makeBadge: { AnyView(CanvasToolBadge()) }
+        )
+    }
+
     static var markdownLibrary: HomeTool {
         HomeTool(
             id: "markdown-library",

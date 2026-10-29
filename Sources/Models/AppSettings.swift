@@ -63,6 +63,9 @@ public class AppSettings: ObservableObject {
     private let externalCoursePathsKey = "WhisperLectures_ExternalCoursePaths"
     private let recentLectureCountKey = "WhisperLectures_RecentLectureCount"
     private let markdownFolderPathsKey = "WhisperLectures_MarkdownFolderPaths"
+    private let canvasAddressKey = "WhisperLectures_CanvasAddress"
+    private let canvasSyncMinutesKey = "WhisperLectures_CanvasSyncMinutes"
+    private let canvasHiddenCourseIDsKey = "WhisperLectures_CanvasHiddenCourseIDs"
 
     @Published public var rootFolderURL: URL {
         didSet {
@@ -127,7 +130,29 @@ public class AppSettings: ObservableObject {
         }
     }
 
+    /// The Canvas site, e.g. `https://school.instructure.com`. The access token is kept in the keychain.
+    @Published public var canvasAddress: String {
+        didSet {
+            UserDefaults.standard.set(canvasAddress, forKey: canvasAddressKey)
+        }
+    }
+
+    /// How often Canvas is synced while the app is open, in minutes. 0 syncs only when asked.
+    @Published public var canvasSyncMinutes: Int {
+        didSet {
+            UserDefaults.standard.set(canvasSyncMinutes, forKey: canvasSyncMinutesKey)
+        }
+    }
+
+    /// Canvas courses left out of the Canvas tool and its syncs.
+    @Published public var canvasHiddenCourseIDs: [Int] {
+        didSet {
+            UserDefaults.standard.set(canvasHiddenCourseIDs, forKey: canvasHiddenCourseIDsKey)
+        }
+    }
+
     public static let concurrentJobsRange = 1...4
+    public static let canvasSyncChoices = [0, 15, 30, 60]
     public static let recentLectureCountRange = 3...50
 
     /// Formats in a stable display order.
@@ -160,6 +185,11 @@ public class AppSettings: ObservableObject {
         self.recentLectureCount = Self.recentLectureCountRange.contains(savedRecent) ? savedRecent : 8
 
         self.markdownFolderPaths = UserDefaults.standard.stringArray(forKey: markdownFolderPathsKey) ?? []
+
+        self.canvasAddress = UserDefaults.standard.string(forKey: canvasAddressKey) ?? ""
+        let savedSync = UserDefaults.standard.integer(forKey: canvasSyncMinutesKey)
+        self.canvasSyncMinutes = Self.canvasSyncChoices.contains(savedSync) ? savedSync : 0
+        self.canvasHiddenCourseIDs = UserDefaults.standard.array(forKey: canvasHiddenCourseIDsKey) as? [Int] ?? []
 
         // Load Model
         let savedModel = UserDefaults.standard.string(forKey: selectedModelKey) ?? "openai_whisper-base"

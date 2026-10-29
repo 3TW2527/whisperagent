@@ -10,14 +10,17 @@ public struct CourseMetadata: Codable, Hashable, Sendable {
     public var tags: [String]
     public var createdAt: Date
     public var lectures: [Lecture]
+    /// Canvas courses whose downloads go into this course's materials folder.
+    public var canvasCourseIDs: [Int]
 
-    public init(name: String, code: String = "", tags: [String] = [], createdAt: Date = Date(), lectures: [Lecture] = []) {
+    public init(name: String, code: String = "", tags: [String] = [], createdAt: Date = Date(), lectures: [Lecture] = [], canvasCourseIDs: [Int] = []) {
         self.schemaVersion = Self.currentSchemaVersion
         self.name = name
         self.code = code
         self.tags = tags
         self.createdAt = createdAt
         self.lectures = lectures
+        self.canvasCourseIDs = canvasCourseIDs
     }
 
     public init(from decoder: Decoder) throws {
@@ -28,6 +31,7 @@ public struct CourseMetadata: Codable, Hashable, Sendable {
         self.tags = try c.decodeIfPresent([String].self, forKey: .tags) ?? []
         self.createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         self.lectures = try c.decodeIfPresent([Lecture].self, forKey: .lectures) ?? []
+        self.canvasCourseIDs = try c.decodeIfPresent([Int].self, forKey: .canvasCourseIDs) ?? []
     }
 
     public var nextLectureNumber: Int {
