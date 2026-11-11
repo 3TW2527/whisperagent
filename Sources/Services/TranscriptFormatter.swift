@@ -83,6 +83,27 @@ public struct SegmentsDocument: Codable, Sendable {
     }
 }
 
+/// Details written into the header of a transcript that isn't part of a course, e.g. one made with the
+/// Transcribe Recording tool.
+public struct StandaloneTranscriptInfo: Sendable {
+    public var title: String
+    public var sourceAudio: String
+    public var recordedAt: Date?
+    /// Seconds skipped at the start of the recording; timestamps count from there.
+    public var trimStart: Double
+    public var model: String
+    public var transcribedAt: Date
+
+    public init(title: String, sourceAudio: String, recordedAt: Date?, trimStart: Double, model: String, transcribedAt: Date = Date()) {
+        self.title = title
+        self.sourceAudio = sourceAudio
+        self.recordedAt = recordedAt
+        self.trimStart = trimStart
+        self.model = model
+        self.transcribedAt = transcribedAt
+    }
+}
+
 public enum TranscriptFormatter {
     /// Paragraphs are split on pauses or after this many seconds, keeping Markdown compact for LLMs
     /// while still giving a timestamp to cite.
@@ -90,11 +111,20 @@ public enum TranscriptFormatter {
     static let paragraphPauseSeconds: Double = 2.5
 
     public static func render(_ format: TranscriptFormat, segments: [TranscriptSegment], context: TranscriptContext) -> String {
+        render(format, segments: segments) { markdown($0, context: context) }
+    }
+
+    /// Renders a transcript that doesn't belong to a course or project.
+    public static func render(_ format: TranscriptFormat, segments: [TranscriptSegment], standalone info: StandaloneTranscriptInfo) -> String {
+        render(format, segments: segments) { markdown($0, standalone: info) }
+    }
+
+    private static func render(_ format: TranscriptFormat, segments: [TranscriptSegment], markdown: ([TranscriptSegment]) -> String) -> String {
         let cleaned = segments
             .map { TranscriptSegment(start: $0.start, end: $0.end, text: $0.text.trimmingCharacters(in: .whitespacesAndNewlines)) }
             .filter { !$0.text.isEmpty }
         switch format {
-        case .markdown: return markdown(cleaned, context: context)
+        case .markdown: return markdown(cleaned)
         case .plainText: return plainText(cleaned)
         case .srt: return srt(cleaned)
         case .vtt: return vtt(cleaned)
@@ -139,6 +169,37 @@ public enum TranscriptFormatter {
         heading += " (Recording \(context.recordingNumber))"
         lines.append(heading)
         lines.append("")
+        lines.append(contentsOf: markdownBody(segments))
+        return lines.joined(separator: "\n")
+    }
+
+    static func markdown(_ segments: [TranscriptSegment], standalone info: StandaloneTranscriptInfo) -> String {
+        var lines: [String] = []
+        lines.append("---")
+        lines.append("title: \(yamlString(info.title))")
+        lines.append("source_audio: \(yamlString(info.sourceAudio))")
+        if let recordedAt = info.recordedAt {
+            lines.append("recorded_at: \(DateFormats.isoMinute.string(from: recordedAt))")
+        }
+        if info.trimStart >= 1 {
+            lines.append("skipped_start: \"\(clock(info.trimStart))\"")
+        }
+        lines.append("model: \(yamlString(info.model))")
+        lines.append("transcribed_at: \(DateFormats.isoMinute.string(from: info.transcribedAt))")
+        if let last = segments.last {
+            lines.append("duration: \"\(clock(last.end))\"")
+        }
+        lines.append("---")
+        lines.append("")
+        lines.append("# \(info.title)")
+        lines.append("")
+        lines.append(contentsOf: markdownBody(segments))
+        return lines.joined(separator: "\n")
+    }
+
+    /// The disclaimer and timestamped paragraphs shared by every Markdown transcript.
+    private static func markdownBody(_ segments: [TranscriptSegment]) -> [String] {
+        var lines: [String] = []
         lines.append("> Automatic transcript. Names, terms and numbers may be misheard. Timestamps are `[mm:ss]` (or `[h:mm:ss]`) from the start of the recording.")
         lines.append("")
 
@@ -148,7 +209,7 @@ public enum TranscriptFormatter {
             lines.append("**[\(clock(first.start))]** \(text)")
             lines.append("")
         }
-        return lines.joined(separator: "\n")
+        return lines
     }
 
     static func paragraphs(_ segments: [TranscriptSegment]) -> [[TranscriptSegment]] {

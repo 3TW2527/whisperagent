@@ -110,7 +110,7 @@ public struct CourseDetailView: View {
                 Label("Voice Memos", systemImage: "mic.fill")
             }
             .controlSize(.small)
-            .help("Open Voice Memos so you can drag recordings in")
+            .help("Open Voice Memos, then drag a recording from its list onto this bar")
 
             Button("Import Audio...") {
                 promptForAudio(lectureNumber: selectedLectureNumber)
@@ -120,7 +120,7 @@ public struct CourseDetailView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(isAudioDropTargeted ? Color.accentColor.opacity(0.12) : Color(NSColor.controlBackgroundColor))
-        .onDrop(of: [.fileURL], isTargeted: $isAudioDropTargeted) { providers in
+        .onDrop(of: VoiceMemosService.droppableTypes, isTargeted: $isAudioDropTargeted) { providers in
             handleDroppedFiles(providers)
             return true
         }
@@ -152,14 +152,12 @@ public struct CourseDetailView: View {
         let lecture = selectedLectureNumber
         let meeting = dropMeetingNumber
         for provider in providers {
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+            VoiceMemosService.shared.loadDroppedFile(from: provider) { url in
                 guard let url else { return }
-                DispatchQueue.main.async {
-                    if VoiceMemosService.shared.isAudioFile(url: url) {
-                        onSelectAudio(url, lecture)
-                    } else {
-                        _ = try? CourseStorageService.shared.ingestMaterial(from: url, courseID: course.id, meetingNumber: meeting)
-                    }
+                if VoiceMemosService.shared.isAudioFile(url: url) {
+                    onSelectAudio(url, lecture)
+                } else {
+                    _ = try? CourseStorageService.shared.ingestMaterial(from: url, courseID: course.id, meetingNumber: meeting)
                 }
             }
         }

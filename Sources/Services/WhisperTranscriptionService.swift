@@ -90,6 +90,8 @@ public class WhisperTranscriptionService: ObservableObject {
     private var cancellationFlags: [UUID: CancellationFlag] = [:]
     private var idleKits: [String: [WhisperKit]] = [:]
     private var modelDownloads: [String: Task<Void, Error>] = [:]
+    /// Output paths (folder plus base name) reserved by queued and running folder jobs.
+    private var reservedFolderOutputs: Set<String> = []
 
     public init() {
         refreshDownloadedModels()
@@ -217,25 +219,82 @@ public class WhisperTranscriptionService: ObservableObject {
         trimStart: TimeInterval,
         trimEnd: TimeInterval
     ) throws -> TranscriptionJob {
-        let storage = CourseStorageService.shared
-        guard let course = storage.course(id: courseID) else { throw StorageError.courseNotFound }
-        let slot = try storage.reserveRecording(courseID: courseID, lectureNumber: lectureNumber, customName: customName)
-
-        let job = TranscriptionJob(
+        guard let course = CourseStorageService.shared.course(id: courseID) else { throw StorageError.courseNotFound }
+        return try enqueue(
             sourceURL: sourceURL,
-            courseID: courseID,
-            courseName: course.name,
-            lectureNumber: lectureNumber,
+            destination: .lecture(courseID: courseID, courseName: course.name, lectureNumber: lectureNumber),
             customName: customName,
             modelVariant: modelVariant,
             trimStart: trimStart,
             trimEnd: trimEnd,
-            formats: AppSettings.shared.orderedTranscriptFormats,
-            slot: slot
+            formats: AppSettings.shared.orderedTranscriptFormats
+        )
+    }
+
+    /// Adds a job for any destination. A lecture job reserves its recording number; a folder job reserves a
+    /// file name in the folder that no existing file or other queued job uses.
+    @discardableResult
+    public func enqueue(
+        sourceURL: URL,
+        destination: JobDestination,
+        customName: String?,
+        modelVariant: String,
+        trimStart: TimeInterval,
+        trimEnd: TimeInterval,
+        formats: [TranscriptFormat]
+    ) throws -> TranscriptionJob {
+        var slot: RecordingSlot?
+        var outputBaseName: String?
+        switch destination {
+        case .lecture(let courseID, _, let lectureNumber):
+            slot = try CourseStorageService.shared.reserveRecording(courseID: courseID, lectureNumber: lectureNumber, customName: customName)
+        case .folder(let folder):
+            let base = customName ?? sourceURL.deletingPathExtension().lastPathComponent
+            outputBaseName = try reserveFolderOutput(folder: folder, baseName: base, formats: formats)
+        }
+
+        let job = TranscriptionJob(
+            sourceURL: sourceURL,
+            destination: destination,
+            customName: customName,
+            modelVariant: modelVariant,
+            trimStart: trimStart,
+            trimEnd: trimEnd,
+            formats: formats,
+            slot: slot,
+            outputBaseName: outputBaseName
         )
         jobs.append(job)
         pump()
         return job
+    }
+
+    /// The first of `name`, `name 2`, `name 3`, ... that no file in the folder (in any of the formats) or other
+    /// job uses, reserved until the job finishes.
+    private func reserveFolderOutput(folder: URL, baseName: String, formats: [TranscriptFormat]) throws -> String {
+        let cleaned = baseName
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let base = cleaned.isEmpty ? "Transcript" : cleaned
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        for index in 1... {
+            let name = index == 1 ? base : "\(base) \(index)"
+            let key = folder.appendingPathComponent(name).path
+            let taken = reservedFolderOutputs.contains(key) || formats.contains {
+                FileManager.default.fileExists(atPath: folder.appendingPathComponent("\(name).\($0.fileExtension)").path)
+            }
+            if !taken {
+                reservedFolderOutputs.insert(key)
+                return name
+            }
+        }
+        return base
+    }
+
+    private func releaseFolderOutput(of job: TranscriptionJob) {
+        guard let folder = job.outputFolder, let name = job.outputBaseName else { return }
+        reservedFolderOutputs.remove(folder.appendingPathComponent(name).path)
     }
 
     public func cancel(jobID: UUID) {
@@ -254,12 +313,12 @@ public class WhisperTranscriptionService: ObservableObject {
         do {
             try enqueue(
                 sourceURL: old.sourceURL,
-                courseID: old.courseID,
-                lectureNumber: old.lectureNumber,
+                destination: old.destination,
                 customName: old.customName,
                 modelVariant: old.modelVariant,
                 trimStart: old.trimStart,
-                trimEnd: old.trimEnd
+                trimEnd: old.trimEnd,
+                formats: old.formats
             )
         } catch {
             var failed = old
@@ -298,6 +357,7 @@ public class WhisperTranscriptionService: ObservableObject {
             if !phase.isCompleted, let slot = jobs[index].slot {
                 CourseStorageService.shared.releaseRecording(slot)
             }
+            releaseFolderOutput(of: jobs[index])
             jobs[index].phase = phase
         }
         runningTasks[jobID] = nil
@@ -314,8 +374,6 @@ public class WhisperTranscriptionService: ObservableObject {
         }
 
         do {
-            guard let slot = job.slot else { throw StorageError.lectureNotFound }
-
             // 1. Trim audio
             let trimmed = try await AudioProcessingService.shared.trimAudio(
                 sourceURL: job.sourceURL,
@@ -359,36 +417,69 @@ public class WhisperTranscriptionService: ObservableObject {
             }
             try checkCancelled(flag)
 
-            // 4. Save every selected format plus timing data
+            // 4. Save every selected format (plus timing data for a lecture)
             setPhase(job.id, .saving)
-            let storage = CourseStorageService.shared
-            guard let course = storage.course(id: job.courseID) else { throw StorageError.courseNotFound }
-            guard let lecture = course.lecture(number: job.lectureNumber) else { throw StorageError.lectureNotFound }
-
             let segments = Self.segments(from: results)
-            var context = TranscriptContext(
-                courseName: course.name,
-                courseCode: course.metadata.code,
-                lectureNumber: lecture.number,
-                lectureTitle: lecture.title,
-                lectureDate: lecture.date,
-                recordingNumber: slot.recordingNumber,
-                sourceAudio: job.sourceURL.lastPathComponent,
-                model: job.modelVariant
-            )
-            context.update(course: course, lecture: lecture)
-            let files = try storage.saveRecording(
-                slot: slot,
-                document: SegmentsDocument(context: context, segments: segments),
-                formats: job.formats,
-                durationSeconds: max(0, job.trimEnd - job.trimStart)
-            )
+            let files: [URL]
+            switch job.destination {
+            case .lecture(let courseID, _, let lectureNumber):
+                files = try saveLectureRecording(job: job, courseID: courseID, lectureNumber: lectureNumber, segments: segments)
+            case .folder(let folder):
+                files = try saveStandalone(job: job, folder: folder, segments: segments)
+            }
             finish(jobID: job.id, phase: .completed(files: files))
         } catch is CancellationError {
             finish(jobID: job.id, phase: .cancelled)
         } catch {
             finish(jobID: job.id, phase: flag.isCancelled ? .cancelled : .failed(error: error.localizedDescription))
         }
+    }
+
+    private func saveLectureRecording(job: TranscriptionJob, courseID: String, lectureNumber: Int, segments: [TranscriptSegment]) throws -> [URL] {
+        guard let slot = job.slot else { throw StorageError.lectureNotFound }
+        let storage = CourseStorageService.shared
+        guard let course = storage.course(id: courseID) else { throw StorageError.courseNotFound }
+        guard let lecture = course.lecture(number: lectureNumber) else { throw StorageError.lectureNotFound }
+
+        var context = TranscriptContext(
+            courseName: course.name,
+            courseCode: course.metadata.code,
+            lectureNumber: lecture.number,
+            lectureTitle: lecture.title,
+            lectureDate: lecture.date,
+            recordingNumber: slot.recordingNumber,
+            sourceAudio: job.sourceURL.lastPathComponent,
+            model: job.modelVariant
+        )
+        context.update(course: course, lecture: lecture)
+        return try storage.saveRecording(
+            slot: slot,
+            document: SegmentsDocument(context: context, segments: segments),
+            formats: job.formats,
+            durationSeconds: max(0, job.trimEnd - job.trimStart)
+        )
+    }
+
+    /// Writes each chosen format straight into the folder, named after the reserved base name.
+    private func saveStandalone(job: TranscriptionJob, folder: URL, segments: [TranscriptSegment]) throws -> [URL] {
+        let name = job.outputBaseName ?? job.sourceURL.deletingPathExtension().lastPathComponent
+        let recordedAt = (try? job.sourceURL.resourceValues(forKeys: [.creationDateKey]))?.creationDate
+        let info = StandaloneTranscriptInfo(
+            title: name,
+            sourceAudio: job.sourceURL.lastPathComponent,
+            recordedAt: recordedAt,
+            trimStart: job.trimStart,
+            model: job.modelVariant
+        )
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var written: [URL] = []
+        for format in job.formats {
+            let url = folder.appendingPathComponent("\(name).\(format.fileExtension)")
+            let content = TranscriptFormatter.render(format, segments: segments, standalone: info)
+            try content.write(to: url, atomically: true, encoding: .utf8)
+            written.append(url)
+        }
+        return written
     }
 
     private func checkCancelled(_ flag: CancellationFlag) throws {

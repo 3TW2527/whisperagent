@@ -229,7 +229,8 @@ struct DocumentPane: View {
 
     var body: some View {
         if let file {
-            FilePreviewPane(file: file)
+            CourseFilePane(file: file, course: course, nav: nav)
+                .id(file.id)
         } else {
             VStack(spacing: 10) {
                 Image(systemName: "arrow.down.doc")
@@ -380,7 +381,31 @@ struct ProjectFilePane: View {
     }
 }
 
-/// A file's name and details, buttons to open it, and a Quick Look preview.
+/// A course or meeting file: Markdown opens rendered in the note editor (switchable to editing), anything else
+/// gets the usual preview.
+struct CourseFilePane: View {
+    let file: LectureFile
+    let course: Course
+    @ObservedObject var nav: CourseNavigation
+
+    var body: some View {
+        if file.url.pathExtension.lowercased() == "md" {
+            MarkdownDocumentEditor(
+                fileURL: file.url,
+                title: file.url.deletingPathExtension().lastPathComponent,
+                linkContext: WikilinkContext(course: course),
+                exportDirectory: file.url.deletingLastPathComponent(),
+                modeKey: "whisperlectures_markdown_file_mode",
+                defaultMode: .preview,
+                onWikilink: { nav.open($0, in: course) }
+            )
+        } else {
+            FilePreviewPane(file: file)
+        }
+    }
+}
+
+/// A file's name and details, buttons to open it, and a preview (a paged viewer for PDFs, Quick Look otherwise).
 struct FilePreviewPane: View {
     let file: LectureFile
 
@@ -413,7 +438,7 @@ struct FilePreviewPane: View {
 
             Divider()
 
-            QuickLookPreviewView(fileURL: file.url)
+            FileContentPreview(fileURL: file.url)
                 .id(file.id)
         }
     }

@@ -41,6 +41,7 @@
 		80096E8C1FBA84EDC3A44366 /* LecturesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EE0D1DCA86B5CB7C587FD85 /* LecturesView.swift */; };
 		956FD7BDB21B72D316585CFD /* CourseSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C09B9FD2B268DCE5B971929 /* CourseSidebarView.swift */; };
 		9A9F9345808BB8067126E7EA /* PhoneNotepadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CE0BA328E277FD766B3B864 /* PhoneNotepadView.swift */; };
+		5D1E7A0C3B9F42E8A61C0B71 /* TranscribeRecordingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E4C2F9A1D7B30C5E6A9F214 /* TranscribeRecordingView.swift */; };
 		9AC87D8AB21321E4142CC081 /* MarkdownEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DB3D615668A6AAA35DAB93C /* MarkdownEditorView.swift */; };
 		9B3EC482B1E0B08D8AB967ED /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AACE37D91B8D16EF78518DB /* SettingsView.swift */; };
 		A11BAFC9847322A99BD199AB /* CourseStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2041E38D8D54D80E85F46B8 /* CourseStorageService.swift */; };
@@ -100,6 +101,7 @@
 		9481D59359187CFCAA6A03EC /* Preview */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Preview; path = Sources/Resources/Preview; sourceTree = SOURCE_ROOT; };
 		97E604064301AE0CE03F2372 /* ActionItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionItem.swift; sourceTree = "<group>"; };
 		9CE0BA328E277FD766B3B864 /* PhoneNotepadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneNotepadView.swift; sourceTree = "<group>"; };
+		8E4C2F9A1D7B30C5E6A9F214 /* TranscribeRecordingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscribeRecordingView.swift; sourceTree = "<group>"; };
 		9F8AA2193825B71CF446FAA9 /* ProjectFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectFiles.swift; sourceTree = "<group>"; };
 		A21AC9E765EB70E9B1845538 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AB775FB6721014CBFDEB86FE /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
@@ -168,6 +170,7 @@
 				D29FAC012D69B9E625EB9C82 /* MarkdownLibrarySettingsView.swift */,
 				1B4A414AD7E7C150FDB50ACD /* MarkdownLibraryView.swift */,
 				9CE0BA328E277FD766B3B864 /* PhoneNotepadView.swift */,
+				8E4C2F9A1D7B30C5E6A9F214 /* TranscribeRecordingView.swift */,
 			);
 			path = Home;
 			sourceTree = "<group>";
@@ -380,6 +383,7 @@
 				D782368F3A4C15329269792A /* PhoneNotepadPage.swift in Sources */,
 				1ABF2F5376D1BD129575C67D /* PhoneNotepadServer.swift in Sources */,
 				9A9F9345808BB8067126E7EA /* PhoneNotepadView.swift in Sources */,
+				5D1E7A0C3B9F42E8A61C0B71 /* TranscribeRecordingView.swift in Sources */,
 				F816872D6777E6C23B4489B4 /* ProjectConversionSheet.swift in Sources */,
 				012D7BA0561340303ADB6CF9 /* ProjectFiles.swift in Sources */,
 				02F7A24993FCE4F4AF405168 /* QuickLookPreview.swift in Sources */,

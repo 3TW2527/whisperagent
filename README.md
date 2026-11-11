@@ -16,9 +16,9 @@ Open a course and the sidebar switches to its **Lectures** and **Documents**. Th
 
 ### Projects and Meetings
 A **project** is for recurring group work, such as a team or capstone project: meetings instead of lectures, plus your own work. Create one with **New Project** (toolbar + menu, or the home screen), or turn a course you've been using for meetings into one with **Convert to Project...** (right-click it, or its gear menu).
-- **The project folder is its root.** Choose an existing folder and the files already in it stay where they are. The app manages `materials/` (reference material for the whole project), `meetings/`, `notes/` and `transcripts/`; every other folder is your own work and is listed under **Files**, where Markdown files open in the note editor and everything else previews with Quick Look.
+- **The project folder is its root.** Choose an existing folder and the files already in it stay where they are. The app manages `materials/` (reference material for the whole project), `meetings/`, `notes/` and `transcripts/`; every other folder is your own work and is listed under **Files**, where Markdown files open in the note editor, PDFs open in a viewer with page thumbnails, page-by-page buttons and a page-number box, and everything else previews with Quick Look.
 - **Meetings** are numbered M01, M02, ... and can belong to a **series**, set in the project's settings (e.g. *Team*, Mondays at 10:00). An untitled meeting is called after its series, e.g. *Team Meeting 3*, numbered by date within the series. Picking a series for a new meeting moves it to that series' usual day and time.
-- **Files from one meeting** (slides shown, whiteboard photos) go in `meetings/M03/`. With a meeting open, drop files onto the bar above it or use the + beside its Files. Move a file between the project's materials and a meeting from its right-click menu.
+- **Files from one meeting** (slides shown, whiteboard photos) go in `meetings/M03/`. Markdown files there and in a course's Documents open rendered, with a switch to edit them. With a meeting open, drop files onto the bar above it or use the + beside its Files. Move a file between the project's materials and a meeting from its right-click menu.
 - **Key dates** (deadlines, presentations) are set in the project's settings and show on the home screen and in `PROJECT.md`.
 - A new meeting's note starts with *Agenda*, *Notes* and *Actions* headings.
 - **Actions**: any `- [ ] ...` checkbox in a project's notes is an action; add `due:2026-11-05` for a due date. **Actions** at the top of the meetings list shows them all, grouped by meeting, with overdue dates in red. Ticking one there ticks it in its note, which stays the record. `ACTIONS.md` lists them for AI assistants.
@@ -31,6 +31,14 @@ With no course open, the main area shows the **home screen**. Return to it at an
 - **Tools**: extra features, each opened from a card. New tools are registered in `Sources/Views/Home/HomeTool.swift`. A tool's own settings open from the gear in its header and are also listed under **Settings → Tools**, separate from the general settings.
 
 The library button at the bottom of the sidebar (iCloud Drive / Local) opens the library folder in Finder.
+
+### Transcribe Recording
+A home-screen tool for transcribing one recording that doesn't belong to a course or project, e.g. an interview or a voice note. Drop an audio file onto it (or choose one), pick where to save, and press **Transcribe**.
+- **Save anywhere.** Choose a folder, or leave it unset to save next to the recording. The chosen folder is remembered for next time.
+- **File name** defaults to the recording's name. If a file with that name is already in the folder, a number is added (`Interview 2`) instead of overwriting it.
+- **Model and formats** default to the ones in Settings and can be changed for this recording only. Models you haven't downloaded are marked and are downloaded first.
+- **Skip silence at the start** is on by default, as in the course trimmer.
+- The job runs in the same queue as lecture transcriptions, so it shows in the jobs bar and can be cancelled or retried there. The Markdown file's header has the title, source file, recording date and model instead of course details.
 
 ### Canvas
 A home-screen tool that lists the files in your Canvas courses and shows what's new. Connect it from the tool's gear with your school's Canvas address and an access token (Canvas → Account → Settings → New Access Token). The token is kept in your keychain and only sees what you can see as a student.
@@ -60,7 +68,7 @@ Write notes per course from the **Notes** section of the transcript bar. An open
 - **Run several transcriptions at once.** Set the limit (1–4) in Settings. Extra jobs wait in a visible queue, and each job can be cancelled, retried or dismissed.
 - Recording numbers are reserved when a job is queued, so parallel jobs for the same lecture never collide.
 - **Waveform trimmer** with automatic silence detection. Whisper can hallucinate on long leading silence, so the app can skip it.
-- Works with Voice Memos (drag recordings straight in) and iCloud Drive.
+- Works with Voice Memos (drag a recording from its list straight onto the drop bar or the Transcribe Recording tool; no need to export it first) and iCloud Drive.
 
 ### Output Formats
 - **Markdown** (`.md`): a YAML metadata header plus timestamped paragraphs. Best for LLMs.

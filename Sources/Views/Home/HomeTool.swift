@@ -20,7 +20,7 @@ struct HomeTool: Identifiable {
 
     /// Every tool, in the order the home screen shows them.
     static var all: [HomeTool] {
-        [.canvas, .markdownLibrary, .phoneNotepad]
+        [.transcribeRecording, .canvas, .markdownLibrary, .phoneNotepad]
     }
 
     static func tool(id: String) -> HomeTool? {
@@ -66,6 +66,19 @@ extension HomeTool {
             makeView: { AnyView(PhoneNotepadView()) },
             makeSettings: { AnyView(PhoneNotepadSettingsView()) },
             makeBadge: { AnyView(PhoneNotepadBadge()) }
+        )
+    }
+}
+
+extension HomeTool {
+    static var transcribeRecording: HomeTool {
+        HomeTool(
+            id: "transcribe-recording",
+            title: "Transcribe Recording",
+            summary: "Transcribe a single recording and save the transcript to any folder.",
+            systemImage: "waveform.badge.mic",
+            tint: .orange,
+            makeView: { AnyView(TranscribeRecordingView()) }
         )
     }
 }

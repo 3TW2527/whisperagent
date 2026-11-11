@@ -42,14 +42,11 @@ public struct JobsPanelView: View {
                 .padding(.vertical, 6)
 
                 if isExpanded {
-                    ScrollView {
-                        VStack(spacing: 6) {
-                            ForEach(service.jobs) { job in
-                                JobRowView(job: job, showsCourse: true)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 8)
+                    // A scroll view always fills the height it's offered, so show the rows at their own height and
+                    // only scroll once they'd grow past the cap.
+                    ViewThatFits(in: .vertical) {
+                        jobRows
+                        ScrollView { jobRows }
                     }
                     .frame(maxHeight: 150)
                 }
@@ -57,6 +54,16 @@ public struct JobsPanelView: View {
             .background(Color.accentColor.opacity(0.08))
             .overlay(Rectangle().frame(height: 1).foregroundColor(Color.accentColor.opacity(0.2)), alignment: .bottom)
         }
+    }
+
+    private var jobRows: some View {
+        VStack(spacing: 6) {
+            ForEach(service.jobs) { job in
+                JobRowView(job: job, showsCourse: true)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
     }
 
     private var summary: String {
@@ -92,7 +99,7 @@ public struct JobRowView: View {
                         .font(.caption.bold())
                         .lineLimit(1)
                     if showsCourse {
-                        Text("\(job.courseName) · \(Lecture.label(number: job.lectureNumber, kind: CourseStorageService.shared.course(id: job.courseID)?.kind ?? .course))")
+                        Text(destinationLabel)
                             .font(.caption2)
                             .foregroundColor(.secondary)
                             .lineLimit(1)
@@ -141,6 +148,16 @@ public struct JobRowView: View {
         .padding(8)
         .background(Color(NSColor.controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+
+    private var destinationLabel: String {
+        switch job.destination {
+        case .lecture(let courseID, let courseName, let lectureNumber):
+            let kind = CourseStorageService.shared.course(id: courseID)?.kind ?? .course
+            return "\(courseName) · \(Lecture.label(number: lectureNumber, kind: kind))"
+        case .folder(let folder):
+            return "Saving to \(folder.lastPathComponent)"
+        }
     }
 
     private var isFailed: Bool {

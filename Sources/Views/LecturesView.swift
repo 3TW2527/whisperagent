@@ -435,7 +435,7 @@ struct TranscriptWorkspace: View {
             }
         case .file(let id):
             if let file = meetingFiles.first(where: { $0.id == id }) {
-                FilePreviewPane(file: file)
+                CourseFilePane(file: file, course: course, nav: nav)
                     .id(file.id)
             } else {
                 emptyDetail

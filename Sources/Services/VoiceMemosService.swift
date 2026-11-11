@@ -17,7 +17,7 @@ public final class VoiceMemosService: Sendable {
         return Self.supportedAudioExtensions.contains(ext)
     }
 
-    /// Launches or brings macOS Voice Memos app to the foreground so the user can easily drag recordings into WhisperLectures
+    /// Launches or brings macOS Voice Memos app to the foreground so the user can drag recordings straight into WhisperLectures
     public func openVoiceMemosApp() {
         if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.VoiceMemos") {
             let config = NSWorkspace.OpenConfiguration()
@@ -33,6 +33,85 @@ public final class VoiceMemosService: Sendable {
             if FileManager.default.fileExists(atPath: voiceMemosURL.path) {
                 NSWorkspace.shared.open(voiceMemosURL)
             }
+        }
+    }
+
+    // MARK: - Drops
+
+    /// The types a drop target should accept so recordings can come straight from apps that hand over the audio
+    /// itself instead of a file on disk (e.g. Voice Memos, which drags a file promise rather than a file URL).
+    public static let droppableTypes: [UTType] = [.fileURL, .audio]
+
+    /// Turns one dropped item into a file on disk: a dragged file is used where it is, and dragged audio data is
+    /// saved into `droppedRecordingsFolder` first. Calls `completion` on the main actor, with nil if nothing usable came.
+    public func loadDroppedFile(from provider: NSItemProvider, completion: @escaping @MainActor @Sendable (URL?) -> Void) {
+        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                Task { @MainActor in completion(url) }
+            }
+            return
+        }
+
+        let audioType = provider.registeredTypeIdentifiers
+            .compactMap { UTType($0) }
+            .first { $0.conforms(to: .audio) }
+        guard let audioType else {
+            Task { @MainActor in completion(nil) }
+            return
+        }
+
+        let suggestedName = provider.suggestedName
+        provider.loadFileRepresentation(forTypeIdentifier: audioType.identifier) { tempURL, _ in
+            // The temporary file is deleted once this closure returns, so keep a copy before hopping queues.
+            let saved = tempURL.flatMap { try? self.keepDroppedRecording($0, suggestedName: suggestedName, type: audioType) }
+            Task { @MainActor in completion(saved) }
+        }
+    }
+
+    /// Where recordings dropped as data are kept until they are transcribed.
+    public var droppedRecordingsFolder: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return base.appendingPathComponent("Dropped Recordings", isDirectory: true)
+    }
+
+    /// Whether `url` is a copy this service made of a recording dropped as data, rather than the user's own file.
+    public func isDroppedRecordingCopy(_ url: URL) -> Bool {
+        url.standardizedFileURL.deletingLastPathComponent().path == droppedRecordingsFolder.standardizedFileURL.path
+    }
+
+    private func keepDroppedRecording(_ tempURL: URL, suggestedName: String?, type: UTType) throws -> URL {
+        let fileManager = FileManager.default
+        let folder = droppedRecordingsFolder
+        try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
+        removeOldDroppedRecordings(in: folder)
+
+        var ext = tempURL.pathExtension
+        if ext.isEmpty { ext = type.preferredFilenameExtension ?? "m4a" }
+        var name = (suggestedName ?? tempURL.deletingPathExtension().lastPathComponent)
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if name.lowercased().hasSuffix(".\(ext.lowercased())") { name = String(name.dropLast(ext.count + 1)) }
+        if name.isEmpty { name = "Recording" }
+
+        var destination = folder.appendingPathComponent(name).appendingPathExtension(ext)
+        var counter = 2
+        while fileManager.fileExists(atPath: destination.path) {
+            destination = folder.appendingPathComponent("\(name) \(counter)").appendingPathExtension(ext)
+            counter += 1
+        }
+        try fileManager.copyItem(at: tempURL, to: destination)
+        return destination
+    }
+
+    /// Dropped copies are only needed until transcription finishes, so clear out ones older than a week.
+    private func removeOldDroppedRecordings(in folder: URL) {
+        let fileManager = FileManager.default
+        let cutoff = Date().addingTimeInterval(-7 * 24 * 60 * 60)
+        let files = (try? fileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+        for file in files {
+            let modified = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+            if let modified, modified < cutoff { try? fileManager.removeItem(at: file) }
         }
     }
 

@@ -68,6 +68,7 @@ public class AppSettings: ObservableObject {
     private let canvasHiddenCourseIDsKey = "WhisperLectures_CanvasHiddenCourseIDs"
     private let phoneNotepadAutoOffKey = "WhisperLectures_PhoneNotepadAutoOff"
     private let phoneNotepadKeepAwakeKey = "WhisperLectures_PhoneNotepadKeepAwake"
+    private let transcribeToolFolderKey = "WhisperLectures_TranscribeToolFolder"
 
     @Published public var rootFolderURL: URL {
         didSet {
@@ -168,6 +169,13 @@ public class AppSettings: ObservableObject {
         }
     }
 
+    /// The folder the Transcribe Recording tool last saved into. Empty saves next to each recording.
+    @Published public var transcribeToolFolderPath: String {
+        didSet {
+            UserDefaults.standard.set(transcribeToolFolderPath, forKey: transcribeToolFolderKey)
+        }
+    }
+
     public static let concurrentJobsRange = 1...4
     public static let phoneNotepadAutoOffChoices = [15, 30, 60, 120, 240, 0]
     public static let canvasManualSync = -1
@@ -213,6 +221,8 @@ public class AppSettings: ObservableObject {
         let savedAutoOff = UserDefaults.standard.object(forKey: phoneNotepadAutoOffKey) as? Int
         self.phoneNotepadAutoOffMinutes = savedAutoOff.flatMap { Self.phoneNotepadAutoOffChoices.contains($0) ? $0 : nil } ?? 60
         self.phoneNotepadKeepsMacAwake = UserDefaults.standard.object(forKey: phoneNotepadKeepAwakeKey) as? Bool ?? true
+
+        self.transcribeToolFolderPath = UserDefaults.standard.string(forKey: transcribeToolFolderKey) ?? ""
 
         // Load Model
         let savedModel = UserDefaults.standard.string(forKey: selectedModelKey) ?? "openai_whisper-base"
